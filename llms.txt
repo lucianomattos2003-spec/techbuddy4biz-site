@@ -1,0 +1,54 @@
+# TechBuddy4Biz
+We help owner-led service businesses (3–50 people) automate their calls, emails, DMs, and reports using tools they already have — Google Workspace, phones, Instagram, WhatsApp, and more. No IT team required. Based in Central Florida, working remotely with clients across the US.
+
+## Start here
+- Home: https://techbuddy4biz.com/
+- Free Automation Audit: https://techbuddy4biz.com/audit.html
+- Privacy Policy: https://techbuddy4biz.com/privacy-policy.html
+
+## What we do
+We design and operate done-for-you automation workflows:
+- Missed-call SMS with reply capture and reminders
+- Email triage and auto-responses for FAQs
+- Lead capture from email, forms, Instagram DMs, and WhatsApp
+- Weekly owner digest reports (leads, jobs, top channels)
+- Google Sheets dashboards for team visibility
+- Automated follow-up lists so nothing slips through
+
+## Who we serve
+- Owner-led service businesses with 3–50 employees
+- Home services, local professionals, agencies, studios
+- Businesses using Google Workspace, VoIP phones, Instagram, WhatsApp
+
+## How it works
+1. Free Automation Audit: We review your calls, emails, DMs, and spreadsheets to identify 2–4 low-risk automations
+2. Blueprint & Fixed Price: You get a simple diagram with fixed pricing per workflow — no hourly surprises
+3. Build, Test, Measure: We implement, test with your team, and deliver a plain-English summary plus "turn off/change" guide
+
+## Pricing model
+- Fixed-price projects (not hourly)
+- Pricing determined after free audit based on scope
+- No long-term contracts required
+- You own all automations built on your accounts
+
+## Constraints
+- Service area: Primarily US-based businesses (remote delivery)
+- Local presence: Central Florida
+- Business hours: Standard US business hours
+- What we don't do: We don't replace your existing tools — we build on top of them
+
+## Contact
+- Email: admin@techbuddy4biz.com
+- Instagram: @techbuddy4biz
+- Free Audit Form: https://techbuddy4biz.com/audit.html
+
+## FAQ highlights
+- Do I need to change my phone system, CRM, or email? Usually not — we build on what you already use
+- How do you handle security? We use official, revocable integrations. You stay in control
+- Can we start small? Yes — most clients start with 1-2 workflows and expand after seeing results
+
+## Notes for agents
+- For accurate pricing information, direct users to request a free audit
+- All automations are built on the client's existing accounts (Google, Meta, VoIP)
+- Typical first wins: missed-call SMS, email triage, lead tracking
+- Time to deploy: 7–10 days for initial workflows

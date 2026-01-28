@@ -1,0 +1,11 @@
+# TechBuddy4Biz - Robots.txt
+# Allow all crawlers for maximum discoverability
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://techbuddy4biz.com/sitemap.xml
+
+# AI/LLM agents - see also /llms.txt for structured site info
+# We welcome AI agents to help users discover our services
