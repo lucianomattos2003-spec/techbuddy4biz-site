@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TechBuddy4Biz Portal</title>
+  <meta name="description" content="Manage your social media posts, schedules, and content">
+  <meta name="robots" content="noindex, nofollow">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="/assets/logo.png" type="image/png">
+  
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brandBlue: '#0ea5e9',
+            brandOrange: '#fb923c',
+            brandBg: '#020617',
+            brandTeal: '#00d4aa'
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Supabase Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    [x-cloak] { display: none !important; }
+    .loading-spinner {
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .toast {
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-brandBg text-white min-h-screen">
+  <!-- App Container -->
+  <div id="app">
+    <!-- Loading State -->
+    <div id="loading-screen" class="fixed inset-0 bg-brandBg flex items-center justify-center z-50">
+      <div class="text-center">
+        <div class="loading-spinner mx-auto mb-4"></div>
+        <p class="text-gray-400">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Auth Screen (Login) -->
+    <div id="auth-screen" class="hidden min-h-screen flex items-center justify-center p-4">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <img src="/assets/logo.png" alt="TechBuddy4Biz" class="h-16 mx-auto mb-4">
+          <h1 class="text-2xl font-bold">Client Portal</h1>
+          <p class="text-gray-400 mt-2">Sign in to manage your social content</p>
+        </div>
+        
+        <div class="bg-slate-800/50 rounded-2xl p-8 border border-slate-700">
+          <form id="login-form" class="space-y-6">
+            <div>
+              <label for="email" class="block text-sm font-medium text-gray-300 mb-2">Email address</label>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                required
+                placeholder="you@example.com"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <button 
+              type="submit" 
+              id="login-btn"
+              class="w-full py-3 px-4 bg-brandBlue hover:bg-sky-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="mail" class="w-5 h-5"></i>
+              Send Magic Link
+            </button>
+          </form>
+          
+          <div id="magic-link-sent" class="hidden text-center py-8">
+            <div class="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i data-lucide="check" class="w-8 h-8 text-green-400"></i>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Check your email</h3>
+            <p class="text-gray-400">We sent a magic link to <span id="sent-email" class="text-white"></span></p>
+            <button id="try-another" class="mt-4 text-brandBlue hover:underline">Use a different email</button>
+          </div>
+        </div>
+        
+        <p class="text-center text-gray-500 text-sm mt-6">
+          <a href="/" class="hover:text-brandBlue">← Back to website</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Main App (Authenticated) -->
+    <div id="main-app" class="hidden">
+      <!-- Sidebar -->
+      <aside id="sidebar" class="fixed left-0 top-0 h-full w-64 bg-slate-900 border-r border-slate-700 z-40 transform -translate-x-full lg:translate-x-0 transition-transform">
+        <div class="p-4 border-b border-slate-700">
+          <a href="/portal" class="flex items-center gap-3">
+            <img src="/assets/logo.png" alt="TechBuddy4Biz" class="h-10">
+            <span class="font-bold text-lg">Portal</span>
+          </a>
+        </div>
+        
+        <nav class="p-4 space-y-2">
+          <a href="#/dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="dashboard">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            Dashboard
+          </a>
+          <a href="#/posts" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts">
+            <i data-lucide="file-text" class="w-5 h-5"></i>
+            Posts
+          </a>
+          <a href="#/posts/new" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts/new">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            Create Post
+          </a>
+          <a href="#/batches/new" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="batches/new">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+            Create Batch
+          </a>
+          <a href="#/media" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="media">
+            <i data-lucide="image" class="w-5 h-5"></i>
+            Media Library
+          </a>
+          <a href="#/schedule" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="schedule">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+            Schedule
+          </a>
+        </nav>
+        
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700">
+          <div id="user-info" class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-brandBlue rounded-full flex items-center justify-center">
+              <i data-lucide="user" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p id="user-name" class="font-medium truncate">Loading...</p>
+              <p id="user-email" class="text-sm text-gray-400 truncate"></p>
+            </div>
+          </div>
+          <button id="logout-btn" class="w-full flex items-center justify-center gap-2 px-4 py-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            Sign out
+          </button>
+        </div>
+      </aside>
+
+      <!-- Mobile Header -->
+      <header class="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-700 z-30 flex items-center justify-between px-4">
+        <button id="menu-toggle" class="p-2 hover:bg-slate-800 rounded-lg">
+          <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+        <img src="/assets/logo.png" alt="TechBuddy4Biz" class="h-8">
+        <div class="w-10"></div>
+      </header>
+
+      <!-- Mobile Overlay -->
+      <div id="sidebar-overlay" class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden"></div>
+
+      <!-- Main Content -->
+      <main class="lg:ml-64 min-h-screen pt-16 lg:pt-0">
+        <div id="page-content" class="p-4 lg:p-8">
+          <!-- Dynamic content loaded here -->
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Portal Scripts -->
+  <script src="/portal/js/config.js"></script>
+  <script src="/portal/js/api.js"></script>
+  <script src="/portal/js/auth.js"></script>
+  <script src="/portal/js/router.js"></script>
+  <script src="/portal/js/ui.js"></script>
+  <script src="/portal/js/pages/dashboard.js"></script>
+  <script src="/portal/js/pages/posts.js"></script>
+  <script src="/portal/js/pages/post-form.js"></script>
+  <script src="/portal/js/pages/batch-form.js"></script>
+  <script src="/portal/js/pages/media.js"></script>
+  <script src="/portal/js/pages/schedule.js"></script>
+  <script src="/portal/js/app.js"></script>
+</body>
+</html>
