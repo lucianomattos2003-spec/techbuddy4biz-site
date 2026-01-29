@@ -33,7 +33,7 @@ export async function listPosts(request) {
   const db = getAdminClient();
   let query = db
     .from('social_posts')
-    .select('post_id, platform, subject, caption, media_urls, scheduled_at, posted_at, status, approval_status, post_type, input_mode, created_at, client_id')
+    .select('post_id, platform, subject, caption, media_urls, scheduled_at, posted_at, status, approval_status, approved_at, approved_by, approval_responded_at, post_type, input_mode, created_at, updated_at, client_id')
     .order('scheduled_at', { ascending: true, nullsFirst: false });
 
   // Admin can see all posts, or filter by client_id param
@@ -168,6 +168,12 @@ export async function createPost(request) {
   // For manual posts (input_mode = 'manual'), auto-approve if configured
   const autoApprove = scheduleConfig?.auto_approve_manual_posts ?? true;
   const approvalStatus = autoApprove ? 'approved' : 'pending';
+  const now = new Date().toISOString();
+
+  // Determine media source and get thumbnail
+  const mediaUrls = body.media_urls || [];
+  const hasMedia = mediaUrls.length > 0;
+  const thumbnailUrl = hasMedia ? mediaUrls[0]?.url : null;
 
   // Prepare post data
   const postData = {
@@ -176,13 +182,20 @@ export async function createPost(request) {
     subject: body.subject || null,
     caption: body.caption,
     client_provided_caption: body.caption,
-    media_urls: body.media_urls || [],
-    client_provided_media_urls: body.media_urls || [],
+    client_provided_subject: body.subject || null,
+    media_urls: mediaUrls,
+    client_provided_media_urls: mediaUrls,
+    thumbnail_url: thumbnailUrl,
+    media_source: hasMedia ? 'client' : null,  // 'client' for manual uploads, 'ai_generated' for AI
     scheduled_at: body.scheduled_at,
     post_type: body.post_type || 'single_image',
     input_mode: 'manual',
     status: 'ready',
-    approval_status: approvalStatus
+    approval_status: approvalStatus,
+    // Set approval fields when auto-approved
+    approved_at: autoApprove ? now : null,
+    approved_by: autoApprove ? 'system' : null,
+    approval_responded_at: autoApprove ? now : null
   };
 
   // Insert post directly into social_posts
@@ -429,7 +442,8 @@ export async function bulkAction(request) {
       }
 
       // Perform the action
-      let updateData = { updated_at: new Date().toISOString() };
+      const now = new Date().toISOString();
+      let updateData = { updated_at: now };
       
       switch (body.action) {
         case 'delete':
@@ -445,10 +459,21 @@ export async function bulkAction(request) {
           break;
         case 'approve':
           updateData.approval_status = 'approved';
+          updateData.approved_at = now;
+          updateData.approved_by = authResult.user_id || 'portal_user';
+          updateData.approval_responded_at = now;
           break;
         case 'reject':
           updateData.approval_status = 'rejected';
           updateData.status = 'cancelled';
+          updateData.approval_responded_at = now;
+          // Cancel associated tasks
+          await db
+            .from('tasks')
+            .update({ status: 'cancelled' })
+            .eq('payload->>post_id', postId)
+            .eq('task_type', 'publish_social_post')
+            .in('status', ['scheduled', 'pending']);
           break;
       }
 

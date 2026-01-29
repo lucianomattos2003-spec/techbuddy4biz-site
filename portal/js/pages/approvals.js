@@ -74,19 +74,26 @@ window.Approvals = {
       document.getElementById('stat-pending').textContent = this.posts.length;
       
       // Get today's approved count
+      // Check both approved_at (auto-approval) and approval_responded_at (manual approval)
       const today = new Date().toISOString().slice(0, 10);
       const allPosts = await API.listPosts({ limit: 100 });
-      const approvedToday = (allPosts?.posts || []).filter(p => 
-        p.approval_status === 'approved' && 
-        p.approval_responded_at?.slice(0, 10) === today
-      ).length;
+      const approvedToday = (allPosts?.posts || []).filter(p => {
+        if (p.approval_status !== 'approved') return false;
+        // Check approved_at first (set by system), then approval_responded_at (manual)
+        const approvalDate = p.approved_at || p.approval_responded_at || p.updated_at;
+        return approvalDate?.slice(0, 10) === today;
+      }).length;
       document.getElementById('stat-approved').textContent = approvedToday;
       
-      // Get scheduled this week
+      // Get scheduled this week (status 'ready' means scheduled and waiting to publish)
+      const now = new Date();
       const weekFromNow = new Date();
       weekFromNow.setDate(weekFromNow.getDate() + 7);
       const scheduledThisWeek = (allPosts?.posts || []).filter(p => 
-        p.status === 'scheduled' && 
+        p.status === 'ready' && 
+        p.approval_status === 'approved' &&
+        p.scheduled_at &&
+        new Date(p.scheduled_at) >= now &&
         new Date(p.scheduled_at) <= weekFromNow
       ).length;
       document.getElementById('stat-scheduled').textContent = scheduledThisWeek;
