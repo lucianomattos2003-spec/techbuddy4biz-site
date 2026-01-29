@@ -32,9 +32,9 @@ window.BatchForm = {
         <div class="bg-slate-800/50 rounded-xl border border-slate-700 p-6 mb-6">
           <label class="block text-sm font-medium text-gray-300 mb-3">Platform</label>
           <div class="flex flex-wrap gap-3">
-            ${PortalConfig.PLATFORMS.map(p => `
+            ${PortalConfig.getEnabledPlatforms().map((p, idx) => `
               <label class="relative cursor-pointer">
-                <input type="radio" name="batch-platform" value="${p.id}" ${p.id === 'instagram' ? 'checked' : ''} class="peer sr-only">
+                <input type="radio" name="batch-platform" value="${p.id}" ${idx === 0 ? 'checked' : ''} class="peer sr-only">
                 <div class="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-600 peer-checked:border-brandBlue peer-checked:bg-brandBlue/10 hover:border-slate-500 transition-all">
                   <i data-lucide="${p.icon}" class="w-5 h-5" style="color: ${p.color}"></i>
                   <span>${p.name}</span>

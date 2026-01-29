@@ -11,13 +11,16 @@ window.Router = {
    */
   routes: {
     'dashboard': { title: 'Dashboard', handler: 'Dashboard' },
+    'approvals': { title: 'Approvals', handler: 'Approvals' },
     'posts': { title: 'Posts', handler: 'Posts' },
     'posts/new': { title: 'Create Post', handler: 'PostForm' },
     'posts/:id': { title: 'Post Details', handler: 'PostForm' },
+    'calendar': { title: 'Calendar', handler: 'Calendar' },
+    'analytics': { title: 'Analytics', handler: 'Analytics' },
     'batches/new': { title: 'Create Batch', handler: 'BatchForm' },
     'batches/:id': { title: 'Batch Details', handler: 'BatchForm' },
     'media': { title: 'Media Library', handler: 'Media' },
-    'schedule': { title: 'Schedule', handler: 'Schedule' }
+    'schedule': { title: 'Settings', handler: 'Schedule' }
   },
   
   /**
@@ -30,8 +33,20 @@ window.Router = {
   
   /**
    * Navigate to a route
+   * @param {string} path - Route path
+   * @param {boolean} force - Skip unsaved changes check
    */
-  navigate(path) {
+  async navigate(path, force = false) {
+    if (!force && window._hasUnsavedChanges && typeof UI !== 'undefined' && UI.confirm) {
+      const confirmed = await UI.confirm(
+        'You have unsaved changes. Are you sure you want to leave this page?',
+        'Unsaved Changes'
+      );
+      if (!confirmed) return;
+    }
+    if (typeof UI !== 'undefined' && UI.setUnsavedChanges) {
+      UI.setUnsavedChanges(false);
+    }
     window.location.hash = `/${path}`;
   },
   
@@ -81,6 +96,12 @@ window.Router = {
     
     this.currentPage = hash;
     this.updateActiveNav(hash);
+    
+    // Clear unsaved changes flag when navigating
+    if (typeof UI !== 'undefined' && UI.setUnsavedChanges) {
+      UI.setUnsavedChanges(false);
+    }
+    
     this.renderPage(route, params);
   },
   

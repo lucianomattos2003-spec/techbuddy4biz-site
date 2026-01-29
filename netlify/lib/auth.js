@@ -1,9 +1,9 @@
 /**
  * Authentication middleware for Netlify Functions
- * Extracts JWT from Authorization header and verifies with Supabase
+ * Uses app-level JWT tokens (not Supabase Auth)
  */
 
-import { verifyToken } from './supabase.js';
+import { verifyToken } from './jwt.js';
 
 /**
  * Extract Bearer token from Authorization header
@@ -32,23 +32,45 @@ export async function requireAuth(request) {
     });
   }
   
-  const authResult = await verifyToken(token);
+  // Verify our app-level JWT
+  const payload = verifyToken(token);
   
-  if (!authResult) {
+  if (!payload) {
     return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' }
     });
   }
   
-  if (!authResult.client_id) {
+  // Check token type
+  if (payload.type !== 'access') {
+    return new Response(JSON.stringify({ error: 'Invalid token type' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  
+  const role = payload.role || 'client';
+  
+  // Admin users don't need client_id - they have full access
+  // Regular client users must have a client_id
+  if (role !== 'admin' && !payload.client_id) {
     return new Response(JSON.stringify({ error: 'User not linked to a client account' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' }
     });
   }
   
-  return authResult;
+  // Return user context from token
+  return {
+    user: {
+      id: payload.user_id,
+      email: payload.email
+    },
+    client_id: payload.client_id, // null for admins
+    role: role,
+    isAdmin: role === 'admin'
+  };
 }
 
 /**

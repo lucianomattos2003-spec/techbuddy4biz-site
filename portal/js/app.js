@@ -10,29 +10,29 @@ const App = {
   async init() {
     console.log('🚀 TechBuddy4Biz Portal initializing...');
     
-    // Setup sidebar toggle for mobile
-    this.setupSidebar();
-    
-    // Check for auth callback
-    if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
-      await this.handleAuthCallback();
-      return;
+    try {
+      // Initialize UI safeguards (online/offline detection, etc.)
+      console.log('🛡️ Initializing UI safeguards...');
+      UI.initSafeguards();
+      
+      // Initialize Auth module first
+      console.log('📦 Initializing Auth module...');
+      Auth.init();
+      
+      // Setup sidebar toggle for mobile
+      this.setupSidebar();
+      
+      // Check existing session (from stored tokens)
+      console.log('🔍 Checking existing session...');
+      await this.checkAuth();
+      
+    } catch (e) {
+      console.error('❌ App init error:', e);
+      this.isAuthenticated = false;
     }
     
-    // Initialize Supabase auth
-    await this.checkAuth();
-    
-    // Setup auth listeners
-    Auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event);
-      if (event === 'SIGNED_IN' && session) {
-        this.handleSignIn(session);
-      } else if (event === 'SIGNED_OUT') {
-        this.handleSignOut();
-      }
-    });
-    
-    // Initial render
+    // Always render (show login if not authenticated)
+    console.log('🎨 Initial render...');
     this.render();
   },
   
@@ -67,78 +67,38 @@ const App = {
   },
   
   async checkAuth() {
+    console.log('🔐 checkAuth() starting...');
     try {
-      const session = Auth.getSession();
-      if (session) {
+      // Check if we have a valid token
+      const isValid = await Auth.checkAuth();
+      console.log('📋 Session check result:', { isValid, hasToken: !!Auth.accessToken });
+      
+      if (isValid) {
+        console.log('✅ Valid session found for:', Auth.user?.email);
         this.isAuthenticated = true;
-        this.user = session.user;
+        this.user = Auth.user;
         
-        // Verify session with backend
-        try {
-          const me = await API.getMe();
-          if (me?.user) {
-            this.user = { ...this.user, ...me.user };
-          }
-        } catch (e) {
-          console.warn('Could not verify session with backend:', e);
-        }
+        // Load enabled platforms for this client
+        await API.loadEnabledPlatforms();
+      } else {
+        console.log('ℹ️ No active session');
+        this.isAuthenticated = false;
+        this.user = null;
       }
     } catch (e) {
-      console.error('Auth check failed:', e);
+      console.error('❌ Auth check failed:', e);
       this.isAuthenticated = false;
       this.user = null;
     }
   },
   
-  async handleAuthCallback() {
-    console.log('Handling auth callback...');
-    
-    // Parse hash fragment for tokens
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    const error = hashParams.get('error');
-    const errorDescription = hashParams.get('error_description');
-    
-    if (error) {
-      console.error('Auth error:', error, errorDescription);
-      UI.toast(errorDescription || 'Authentication failed', 'error');
-      window.location.hash = '';
-      this.render();
-      return;
-    }
-    
-    if (accessToken) {
-      try {
-        // Set session in Supabase client
-        const { data, error: sessionError } = await Auth.supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
-        
-        if (sessionError) throw sessionError;
-        
-        this.isAuthenticated = true;
-        this.user = data.session?.user;
-        
-        UI.toast('Welcome back!', 'success');
-        
-        // Clear hash and navigate to dashboard
-        window.location.hash = '/dashboard';
-        
-      } catch (e) {
-        console.error('Session setup failed:', e);
-        UI.toast('Failed to complete sign in', 'error');
-        window.location.hash = '';
-      }
-    }
-    
-    this.render();
-  },
-  
-  handleSignIn(session) {
+  async handleSignIn(userData) {
     this.isAuthenticated = true;
-    this.user = session.user;
+    this.user = userData;
+    
+    // Load enabled platforms for this client before rendering
+    await API.loadEnabledPlatforms();
+    
     this.render();
     
     // Navigate to dashboard if on login screen
@@ -150,15 +110,28 @@ const App = {
   handleSignOut() {
     this.isAuthenticated = false;
     this.user = null;
+    PortalConfig.clearEnabledPlatforms(); // Clear enabled platforms on logout
     this.render();
     window.location.hash = '';
   },
   
   render() {
+    console.log('🎨 render() called, isAuthenticated:', this.isAuthenticated);
+    
+    // Hide loading screen
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+      console.log('🔄 Hiding loading screen...');
+      loadingScreen.classList.add('hidden');
+    }
+    
     const authScreen = document.getElementById('auth-screen');
     const mainApp = document.getElementById('main-app');
     
+    console.log('📍 DOM elements found:', { authScreen: !!authScreen, mainApp: !!mainApp });
+    
     if (this.isAuthenticated) {
+      console.log('✅ Showing main app (authenticated)');
       // Show main app
       authScreen?.classList.add('hidden');
       mainApp?.classList.remove('hidden');
@@ -167,65 +140,261 @@ const App = {
       this.updateUserInfo();
       
       // Initialize router
+      console.log('🔗 Initializing router...');
       Router.init();
       
+      // Refresh approval badge
+      setTimeout(() => {
+        if (typeof refreshApprovalBadge === 'function') {
+          refreshApprovalBadge();
+        }
+      }, 500);
+      
     } else {
+      console.log('🔑 Showing login screen (not authenticated)');
       // Show login screen
       authScreen?.classList.remove('hidden');
       mainApp?.classList.add('hidden');
       
       // Setup login form
+      console.log('📝 Setting up login form...');
       this.setupLoginForm();
     }
+    
+    console.log('✅ render() complete');
   },
   
   updateUserInfo() {
+    const userName = document.getElementById('user-name');
     const userEmail = document.getElementById('user-email');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    if (userName) {
+      userName.textContent = Auth.getDisplayName() || 'User';
+    }
     if (userEmail && this.user?.email) {
       userEmail.textContent = this.user.email;
+    }
+    if (logoutBtn) {
+      logoutBtn.onclick = () => this.logout();
     }
   },
   
   setupLoginForm() {
-    const form = document.getElementById('login-form');
-    const emailInput = document.getElementById('login-email');
-    const submitBtn = form?.querySelector('button[type="submit"]');
-    const successMsg = document.getElementById('login-success');
+    // Get all form elements
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const forgotForm = document.getElementById('forgot-form');
+    const otpForm = document.getElementById('otp-form');
+    const resetForm = document.getElementById('reset-form');
     
-    if (!form) return;
+    // Form toggle buttons
+    const showSignup = document.getElementById('show-signup');
+    const showForgot = document.getElementById('show-forgot');
+    const showLoginFromSignup = document.getElementById('show-login-from-signup');
+    const showLoginFromForgot = document.getElementById('show-login-from-forgot');
+    const resendOtp = document.getElementById('resend-otp');
     
-    // Remove old listener and add new one
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
+    // Helper to show only one form
+    const showForm = (formId) => {
+      [loginForm, signupForm, forgotForm, otpForm, resetForm].forEach(f => f?.classList.add('hidden'));
+      document.getElementById(formId)?.classList.remove('hidden');
+      lucide.createIcons();
+    };
     
-    newForm.addEventListener('submit', async (e) => {
+    // Toggle between forms
+    showSignup?.addEventListener('click', () => showForm('signup-form'));
+    showForgot?.addEventListener('click', () => showForm('forgot-form'));
+    showLoginFromSignup?.addEventListener('click', () => showForm('login-form'));
+    showLoginFromForgot?.addEventListener('click', () => showForm('login-form'));
+    
+    // ========== LOGIN FORM ==========
+    loginForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const email = newForm.querySelector('#login-email').value.trim();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      
+      if (!email || !password) {
+        UI.toast('Please enter email and password', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Signing in...';
+      
+      try {
+        const result = await Auth.signIn(email, password);
+        UI.toast('Welcome back!', 'success');
+        // Update app state and render dashboard
+        this.handleSignIn(result.user);
+      } catch (error) {
+        console.error('Login failed:', error);
+        UI.toast(error.message || 'Invalid email or password', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="log-in" class="w-5 h-5"></i> Sign In';
+        lucide.createIcons();
+      }
+    });
+    
+    // ========== SIGNUP FORM ==========
+    signupForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('signup-confirm').value;
+      
+      if (!email || !password) {
+        UI.toast('Please fill in all fields', 'error');
+        return;
+      }
+      
+      if (password !== confirm) {
+        UI.toast('Passwords do not match', 'error');
+        return;
+      }
+      
+      if (password.length < 6) {
+        UI.toast('Password must be at least 6 characters', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('signup-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Creating account...';
+      
+      try {
+        const result = await Auth.signUp(email, password);
+        UI.toast('Account created successfully!', 'success');
+        // Auto-login after signup
+        this.handleSignIn(result.user);
+      } catch (error) {
+        console.error('Signup failed:', error);
+        UI.toast(error.message || 'Failed to create account', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="user-plus" class="w-5 h-5"></i> Create Account';
+        lucide.createIcons();
+      }
+    });
+    
+    // ========== FORGOT PASSWORD FORM ==========
+    forgotForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('forgot-email').value.trim();
+      
       if (!email) {
         UI.toast('Please enter your email', 'error');
         return;
       }
       
-      const btn = newForm.querySelector('button[type="submit"]');
+      const btn = document.getElementById('forgot-btn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Sending...';
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Sending code...';
       
       try {
-        await Auth.signInWithMagicLink(email);
+        await Auth.requestPasswordReset(email);
         
-        // Show success message
-        newForm.classList.add('hidden');
-        const success = document.getElementById('login-success');
-        if (success) {
-          success.classList.remove('hidden');
-          success.querySelector('p').textContent = `We sent a magic link to ${email}`;
-        }
-        
+        // Show OTP form
+        document.getElementById('otp-email').textContent = email;
+        showForm('otp-form');
+        UI.toast('Reset code sent to your email', 'success');
       } catch (error) {
-        UI.toast(error.message || 'Failed to send magic link', 'error');
+        console.error('Reset request failed:', error);
+        UI.toast(error.message || 'Failed to send reset code', 'error');
+      } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="send" class="w-5 h-5"></i> Send Magic Link';
+        btn.innerHTML = '<i data-lucide="key" class="w-5 h-5"></i> Send Reset Code';
+        lucide.createIcons();
+      }
+    });
+    
+    // ========== OTP VERIFICATION FORM ==========
+    otpForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const code = document.getElementById('otp-code').value.trim();
+      
+      if (!code || code.length !== 6) {
+        UI.toast('Please enter the 6-digit code', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('otp-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Verifying...';
+      
+      try {
+        await Auth.verifyOTP(code);
+        
+        // Show reset password form
+        showForm('reset-form');
+        UI.toast('Code verified!', 'success');
+      } catch (error) {
+        console.error('OTP verification failed:', error);
+        UI.toast(error.message || 'Invalid or expired code', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> Verify Code';
+        lucide.createIcons();
+      }
+    });
+    
+    // Resend OTP
+    resendOtp?.addEventListener('click', async () => {
+      if (!Auth.resetEmail) {
+        showForm('forgot-form');
+        return;
+      }
+      
+      try {
+        await Auth.requestPasswordReset(Auth.resetEmail);
+        UI.toast('New code sent!', 'success');
+      } catch (error) {
+        UI.toast(error.message || 'Failed to resend code', 'error');
+      }
+    });
+    
+    // ========== RESET PASSWORD FORM ==========
+    resetForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const password = document.getElementById('reset-password').value;
+      const confirm = document.getElementById('reset-confirm').value;
+      
+      if (!password || password.length < 6) {
+        UI.toast('Password must be at least 6 characters', 'error');
+        return;
+      }
+      
+      if (password !== confirm) {
+        UI.toast('Passwords do not match', 'error');
+        return;
+      }
+      
+      const btn = document.getElementById('reset-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Updating...';
+      
+      try {
+        await Auth.resetPassword(password);
+        
+        UI.toast('Password updated! Please sign in.', 'success');
+        showForm('login-form');
+        
+        // Pre-fill email
+        const loginEmail = document.getElementById('login-email');
+        if (loginEmail && Auth.resetEmail) {
+          loginEmail.value = Auth.resetEmail;
+        }
+      } catch (error) {
+        console.error('Password reset failed:', error);
+        UI.toast(error.message || 'Failed to update password', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Update Password';
         lucide.createIcons();
       }
     });
@@ -248,5 +417,20 @@ window.logout = () => App.logout();
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-  App.init();
+  App.init().catch(e => {
+    console.error('❌ Fatal init error:', e);
+    // Force show login screen on any error
+    document.getElementById('loading-screen')?.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+  });
 });
+
+// Safety fallback - hide loading screen after 5 seconds no matter what
+setTimeout(() => {
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+    console.warn('⚠️ Loading timeout - forcing login screen');
+    loadingScreen.classList.add('hidden');
+    document.getElementById('auth-screen')?.classList.remove('hidden');
+  }
+}, 5000);

@@ -206,5 +206,37 @@ window.Dashboard = {
     `;
     
     lucide.createIcons();
+    
+    // Update approval badge in sidebar (fetch actual pending approvals)
+    refreshApprovalBadge();
+  },
+  
+  /**
+   * Update the approval badge count in the sidebar
+   */
+  updateApprovalBadge(posts) {
+    const badge = document.getElementById('approval-badge');
+    if (!badge) return;
+    
+    // Posts are already filtered by approval_status='pending' from the API
+    const pendingCount = posts?.length || 0;
+    
+    if (pendingCount > 0) {
+      badge.textContent = pendingCount;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+};
+
+// Global function to refresh approval badge (can be called from other pages)
+window.refreshApprovalBadge = async () => {
+  try {
+    const data = await API.listPosts({ approval_status: 'pending', limit: 100 });
+    const posts = data?.posts || [];
+    Dashboard.updateApprovalBadge(posts);
+  } catch (e) {
+    console.warn('Failed to refresh approval badge:', e);
   }
 };

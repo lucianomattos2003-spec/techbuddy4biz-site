@@ -59,7 +59,7 @@ window.PostForm = {
           <div>
             <label class="block text-sm font-medium text-gray-300 mb-2">Platform *</label>
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              ${PortalConfig.PLATFORMS.map(p => `
+              ${PortalConfig.getEnabledPlatforms().map(p => `
                 <label class="relative">
                   <input type="radio" name="platform" value="${p.id}" ${this.post?.platform === p.id ? 'checked' : ''} ${!canEdit ? 'disabled' : ''} class="peer sr-only">
                   <div class="p-3 rounded-lg border border-slate-600 cursor-pointer hover:border-slate-500 peer-checked:border-brandBlue peer-checked:bg-brandBlue/10 transition-all text-center ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}">
@@ -217,6 +217,15 @@ window.PostForm = {
     updateCharCount();
     
     if (!canEdit) return;
+    
+    // Track unsaved changes
+    const trackChanges = () => {
+      UI.setUnsavedChanges(true);
+    };
+    form.querySelectorAll('input, textarea, select').forEach(input => {
+      input.addEventListener('input', trackChanges);
+      input.addEventListener('change', trackChanges);
+    });
     
     // Media upload
     const dropzone = document.getElementById('upload-dropzone');
@@ -390,6 +399,9 @@ window.PostForm = {
         await API.createPost(postData);
         UI.toast('Post scheduled!', 'success');
       }
+      
+      // Clear unsaved changes flag
+      UI.setUnsavedChanges(false);
       
       Router.navigate('posts');
     } catch (error) {

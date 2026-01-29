@@ -26,20 +26,33 @@ export async function listPosts(request) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id, isAdmin } = authResult;
   const url = new URL(request.url);
   const params = url.searchParams;
 
   const db = getAdminClient();
   let query = db
     .from('social_posts')
-    .select('post_id, platform, subject, caption, media_urls, scheduled_at, posted_at, status, approval_status, post_type, input_mode, created_at')
-    .eq('client_id', client_id)
+    .select('post_id, platform, subject, caption, media_urls, scheduled_at, posted_at, status, approval_status, post_type, input_mode, created_at, client_id')
     .order('scheduled_at', { ascending: true, nullsFirst: false });
+
+  // Admin can see all posts, or filter by client_id param
+  // Regular users can only see their own posts
+  if (isAdmin) {
+    // Admin can optionally filter by client
+    if (params.get('client_id')) {
+      query = query.eq('client_id', params.get('client_id'));
+    }
+  } else {
+    query = query.eq('client_id', client_id);
+  }
 
   // Apply filters
   if (params.get('status')) {
     query = query.eq('status', params.get('status'));
+  }
+  if (params.get('approval_status')) {
+    query = query.eq('approval_status', params.get('approval_status'));
   }
   if (params.get('platform')) {
     query = query.eq('platform', params.get('platform'));
@@ -72,15 +85,20 @@ export async function getPost(request, postId) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id, isAdmin } = authResult;
   const db = getAdminClient();
 
-  const { data: post, error: dbError } = await db
+  let query = db
     .from('social_posts')
     .select('*')
-    .eq('post_id', postId)
-    .eq('client_id', client_id)
-    .single();
+    .eq('post_id', postId);
+  
+  // Admin can see any post, regular users only their own
+  if (!isAdmin) {
+    query = query.eq('client_id', client_id);
+  }
+  
+  const { data: post, error: dbError } = await query.single();
 
   if (dbError || !post) {
     return notFound('Post not found');
@@ -106,8 +124,15 @@ export async function createPost(request) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id: authClientId, isAdmin } = authResult;
   const body = await parseBody(request);
+
+  // Admin must specify client_id, regular users use their own
+  let client_id = authClientId;
+  if (isAdmin) {
+    if (!body?.client_id) return error('client_id is required for admin users');
+    client_id = body.client_id;
+  }
 
   // Validation
   if (!body?.platform) return error('platform is required');
@@ -211,17 +236,21 @@ export async function updatePost(request, postId) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id, isAdmin } = authResult;
   const body = await parseBody(request);
   const db = getAdminClient();
 
   // Check post exists and is editable
-  const { data: existing } = await db
+  let existingQuery = db
     .from('social_posts')
-    .select('post_id, status')
-    .eq('post_id', postId)
-    .eq('client_id', client_id)
-    .single();
+    .select('post_id, status, client_id')
+    .eq('post_id', postId);
+  
+  if (!isAdmin) {
+    existingQuery = existingQuery.eq('client_id', client_id);
+  }
+  
+  const { data: existing } = await existingQuery.single();
 
   if (!existing) {
     return notFound('Post not found');
@@ -269,13 +298,16 @@ export async function updatePost(request, postId) {
 
   updates.updated_at = new Date().toISOString();
 
-  const { data: post, error: dbError } = await db
+  let updateQuery = db
     .from('social_posts')
     .update(updates)
-    .eq('post_id', postId)
-    .eq('client_id', client_id)
-    .select()
-    .single();
+    .eq('post_id', postId);
+  
+  if (!isAdmin) {
+    updateQuery = updateQuery.eq('client_id', client_id);
+  }
+  
+  const { data: post, error: dbError } = await updateQuery.select().single();
 
   if (dbError) {
     console.error('Update post error:', dbError);
@@ -293,16 +325,20 @@ export async function deletePost(request, postId) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id, isAdmin } = authResult;
   const db = getAdminClient();
 
   // Check post exists and is deletable
-  const { data: existing } = await db
+  let existingQuery = db
     .from('social_posts')
-    .select('post_id, status')
-    .eq('post_id', postId)
-    .eq('client_id', client_id)
-    .single();
+    .select('post_id, status, client_id')
+    .eq('post_id', postId);
+  
+  if (!isAdmin) {
+    existingQuery = existingQuery.eq('client_id', client_id);
+  }
+  
+  const { data: existing } = await existingQuery.single();
 
   if (!existing) {
     return notFound('Post not found');
@@ -321,11 +357,16 @@ export async function deletePost(request, postId) {
     .in('status', ['scheduled', 'pending']);
 
   // Mark post as cancelled (soft delete)
-  const { error: dbError } = await db
+  let deleteQuery = db
     .from('social_posts')
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-    .eq('post_id', postId)
-    .eq('client_id', client_id);
+    .eq('post_id', postId);
+  
+  if (!isAdmin) {
+    deleteQuery = deleteQuery.eq('client_id', client_id);
+  }
+  
+  const { error: dbError } = await deleteQuery;
 
   if (dbError) {
     console.error('Delete post error:', dbError);
@@ -333,4 +374,111 @@ export async function deletePost(request, postId) {
   }
 
   return noContent();
+}
+/**
+ * Bulk operations on multiple posts
+ * Body: {
+ *   action: 'delete' | 'skip' | 'approve' | 'reject',
+ *   post_ids: string[] (required)
+ * }
+ */
+export async function bulkAction(request) {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof Response) return authResult;
+
+  const { client_id, isAdmin } = authResult;
+  const body = await parseBody(request);
+
+  if (!body?.action) return error('action is required');
+  if (!body?.post_ids || !Array.isArray(body.post_ids) || body.post_ids.length === 0) {
+    return error('post_ids must be a non-empty array');
+  }
+
+  const validActions = ['delete', 'skip', 'approve', 'reject'];
+  if (!validActions.includes(body.action)) {
+    return error(`Invalid action. Must be one of: ${validActions.join(', ')}`);
+  }
+
+  const db = getAdminClient();
+  const results = { success: [], failed: [] };
+
+  for (const postId of body.post_ids) {
+    try {
+      // First verify post exists and user has access
+      let checkQuery = db
+        .from('social_posts')
+        .select('post_id, status, client_id')
+        .eq('post_id', postId);
+      
+      if (!isAdmin) {
+        checkQuery = checkQuery.eq('client_id', client_id);
+      }
+      
+      const { data: post } = await checkQuery.single();
+      
+      if (!post) {
+        results.failed.push({ post_id: postId, reason: 'Post not found or access denied' });
+        continue;
+      }
+
+      // Check if action is allowed based on current status
+      const nonEditableStatuses = ['posted', 'publishing'];
+      if (nonEditableStatuses.includes(post.status)) {
+        results.failed.push({ post_id: postId, reason: `Cannot modify post with status: ${post.status}` });
+        continue;
+      }
+
+      // Perform the action
+      let updateData = { updated_at: new Date().toISOString() };
+      
+      switch (body.action) {
+        case 'delete':
+        case 'skip':
+          updateData.status = 'cancelled';
+          // Cancel associated tasks
+          await db
+            .from('tasks')
+            .update({ status: 'cancelled' })
+            .eq('payload->>post_id', postId)
+            .eq('task_type', 'publish_social_post')
+            .in('status', ['scheduled', 'pending']);
+          break;
+        case 'approve':
+          updateData.approval_status = 'approved';
+          break;
+        case 'reject':
+          updateData.approval_status = 'rejected';
+          updateData.status = 'cancelled';
+          break;
+      }
+
+      let updateQuery = db
+        .from('social_posts')
+        .update(updateData)
+        .eq('post_id', postId);
+      
+      if (!isAdmin) {
+        updateQuery = updateQuery.eq('client_id', client_id);
+      }
+
+      const { error: updateError } = await updateQuery;
+
+      if (updateError) {
+        results.failed.push({ post_id: postId, reason: updateError.message });
+      } else {
+        results.success.push(postId);
+      }
+    } catch (e) {
+      results.failed.push({ post_id: postId, reason: e.message });
+    }
+  }
+
+  return json({
+    action: body.action,
+    total: body.post_ids.length,
+    success_count: results.success.length,
+    failed_count: results.failed.length,
+    success: results.success,
+    failed: results.failed
+  });
 }

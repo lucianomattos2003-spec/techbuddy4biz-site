@@ -66,7 +66,7 @@
       </div>
     </div>
 
-    <!-- Auth Screen (Login) -->
+    <!-- Auth Screen (Login/Signup/Reset) -->
     <div id="auth-screen" class="hidden min-h-screen flex items-center justify-center p-4">
       <div class="w-full max-w-md">
         <div class="text-center mb-8">
@@ -76,15 +76,29 @@
         </div>
         
         <div class="bg-slate-800/50 rounded-2xl p-8 border border-slate-700">
-          <form id="login-form" class="space-y-6">
+          <!-- Login Form -->
+          <form id="login-form" class="space-y-5">
             <div>
-              <label for="email" class="block text-sm font-medium text-gray-300 mb-2">Email address</label>
+              <label for="login-email" class="block text-sm font-medium text-gray-300 mb-2">Email address</label>
               <input 
                 type="email" 
-                id="email" 
+                id="login-email" 
                 name="email" 
                 required
                 placeholder="you@example.com"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <div>
+              <label for="login-password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <input 
+                type="password" 
+                id="login-password" 
+                name="password" 
+                required
+                minlength="6"
+                placeholder="••••••••"
                 class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
               >
             </div>
@@ -94,19 +108,181 @@
               id="login-btn"
               class="w-full py-3 px-4 bg-brandBlue hover:bg-sky-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
             >
-              <i data-lucide="mail" class="w-5 h-5"></i>
-              Send Magic Link
+              <i data-lucide="log-in" class="w-5 h-5"></i>
+              Sign In
             </button>
+            
+            <div class="flex items-center justify-between text-sm">
+              <button type="button" id="show-signup" class="text-brandBlue hover:underline">Create account</button>
+              <button type="button" id="show-forgot" class="text-gray-400 hover:text-white">Forgot password?</button>
+            </div>
           </form>
           
-          <div id="magic-link-sent" class="hidden text-center py-8">
-            <div class="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <i data-lucide="check" class="w-8 h-8 text-green-400"></i>
+          <!-- Signup Form -->
+          <form id="signup-form" class="hidden space-y-5">
+            <div>
+              <label for="signup-email" class="block text-sm font-medium text-gray-300 mb-2">Email address</label>
+              <input 
+                type="email" 
+                id="signup-email" 
+                name="email" 
+                required
+                placeholder="you@example.com"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
             </div>
-            <h3 class="text-xl font-semibold mb-2">Check your email</h3>
-            <p class="text-gray-400">We sent a magic link to <span id="sent-email" class="text-white"></span></p>
-            <button id="try-another" class="mt-4 text-brandBlue hover:underline">Use a different email</button>
-          </div>
+            
+            <div>
+              <label for="signup-password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <input 
+                type="password" 
+                id="signup-password" 
+                name="password" 
+                required
+                minlength="6"
+                placeholder="Min 6 characters"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <div>
+              <label for="signup-confirm" class="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
+              <input 
+                type="password" 
+                id="signup-confirm" 
+                name="confirm" 
+                required
+                minlength="6"
+                placeholder="••••••••"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <button 
+              type="submit" 
+              id="signup-btn"
+              class="w-full py-3 px-4 bg-brandTeal hover:bg-emerald-500 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="user-plus" class="w-5 h-5"></i>
+              Create Account
+            </button>
+            
+            <p class="text-center text-sm">
+              <button type="button" id="show-login-from-signup" class="text-brandBlue hover:underline">Already have an account? Sign in</button>
+            </p>
+          </form>
+          
+          <!-- Forgot Password Form -->
+          <form id="forgot-form" class="hidden space-y-5">
+            <p class="text-gray-400 text-sm">Enter your email and we'll send you a 6-digit code to reset your password.</p>
+            
+            <div>
+              <label for="forgot-email" class="block text-sm font-medium text-gray-300 mb-2">Email address</label>
+              <input 
+                type="email" 
+                id="forgot-email" 
+                name="email" 
+                required
+                placeholder="you@example.com"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <button 
+              type="submit" 
+              id="forgot-btn"
+              class="w-full py-3 px-4 bg-brandOrange hover:bg-orange-500 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="key" class="w-5 h-5"></i>
+              Send Reset Code
+            </button>
+            
+            <p class="text-center text-sm">
+              <button type="button" id="show-login-from-forgot" class="text-brandBlue hover:underline">Back to sign in</button>
+            </p>
+          </form>
+          
+          <!-- OTP Verification Form -->
+          <form id="otp-form" class="hidden space-y-5">
+            <div class="text-center mb-4">
+              <div class="w-16 h-16 bg-brandOrange/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="mail-check" class="w-8 h-8 text-brandOrange"></i>
+              </div>
+              <p class="text-gray-400 text-sm">Enter the 6-digit code sent to <span id="otp-email" class="text-white"></span></p>
+            </div>
+            
+            <div>
+              <label for="otp-code" class="block text-sm font-medium text-gray-300 mb-2">Verification Code</label>
+              <input 
+                type="text" 
+                id="otp-code" 
+                name="code" 
+                required
+                maxlength="6"
+                pattern="[0-9]{6}"
+                placeholder="123456"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500 text-center text-2xl tracking-widest"
+              >
+            </div>
+            
+            <button 
+              type="submit" 
+              id="otp-btn"
+              class="w-full py-3 px-4 bg-brandBlue hover:bg-sky-600 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+              Verify Code
+            </button>
+            
+            <p class="text-center text-sm text-gray-400">
+              Didn't receive code? <button type="button" id="resend-otp" class="text-brandBlue hover:underline">Resend</button>
+            </p>
+          </form>
+          
+          <!-- Reset Password Form (after OTP verified) -->
+          <form id="reset-form" class="hidden space-y-5">
+            <div class="text-center mb-4">
+              <div class="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="shield-check" class="w-8 h-8 text-green-400"></i>
+              </div>
+              <p class="text-gray-400 text-sm">Code verified! Set your new password.</p>
+            </div>
+            
+            <div>
+              <label for="reset-password" class="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+              <input 
+                type="password" 
+                id="reset-password" 
+                name="password" 
+                required
+                minlength="6"
+                placeholder="Min 6 characters"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <div>
+              <label for="reset-confirm" class="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
+              <input 
+                type="password" 
+                id="reset-confirm" 
+                name="confirm" 
+                required
+                minlength="6"
+                placeholder="••••••••"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+            
+            <button 
+              type="submit" 
+              id="reset-btn"
+              class="w-full py-3 px-4 bg-brandTeal hover:bg-emerald-500 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="save" class="w-5 h-5"></i>
+              Update Password
+            </button>
+          </form>
         </div>
         
         <p class="text-center text-gray-500 text-sm mt-6">
@@ -126,30 +302,46 @@
           </a>
         </div>
         
-        <nav class="p-4 space-y-2">
-          <a href="#/dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="dashboard">
+        <nav class="p-4 space-y-1">
+          <a href="#/dashboard" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="dashboard">
             <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
             Dashboard
           </a>
-          <a href="#/posts" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts">
+          <a href="#/approvals" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="approvals">
+            <i data-lucide="check-square" class="w-5 h-5"></i>
+            Approvals
+            <span id="approval-badge" class="hidden ml-auto bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+          </a>
+          <a href="#/posts" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts">
             <i data-lucide="file-text" class="w-5 h-5"></i>
             Posts
           </a>
-          <a href="#/posts/new" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts/new">
+          <a href="#/calendar" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="calendar">
+            <i data-lucide="calendar-days" class="w-5 h-5"></i>
+            Calendar
+          </a>
+          <a href="#/analytics" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="analytics">
+            <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+            Analytics
+          </a>
+          
+          <div class="border-t border-slate-700 my-3"></div>
+          
+          <a href="#/posts/new" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="posts/new">
             <i data-lucide="plus-circle" class="w-5 h-5"></i>
             Create Post
           </a>
-          <a href="#/batches/new" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="batches/new">
+          <a href="#/batches/new" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="batches/new">
             <i data-lucide="layers" class="w-5 h-5"></i>
             Create Batch
           </a>
-          <a href="#/media" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="media">
+          <a href="#/media" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="media">
             <i data-lucide="image" class="w-5 h-5"></i>
             Media Library
           </a>
-          <a href="#/schedule" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-800 transition-colors" data-page="schedule">
-            <i data-lucide="calendar" class="w-5 h-5"></i>
-            Schedule
+          <a href="#/schedule" class="nav-link flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-800 transition-colors" data-page="schedule">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            Settings
           </a>
         </nav>
         
@@ -196,16 +388,19 @@
 
   <!-- Portal Scripts -->
   <script src="/portal/js/config.js"></script>
+  <script src="/portal/js/ui.js"></script>
   <script src="/portal/js/api.js"></script>
   <script src="/portal/js/auth.js"></script>
   <script src="/portal/js/router.js"></script>
-  <script src="/portal/js/ui.js"></script>
   <script src="/portal/js/pages/dashboard.js"></script>
+  <script src="/portal/js/pages/approvals.js"></script>
   <script src="/portal/js/pages/posts.js"></script>
   <script src="/portal/js/pages/post-form.js"></script>
   <script src="/portal/js/pages/batch-form.js"></script>
   <script src="/portal/js/pages/media.js"></script>
   <script src="/portal/js/pages/schedule.js"></script>
+  <script src="/portal/js/pages/calendar.js"></script>
+  <script src="/portal/js/pages/analytics.js"></script>
   <script src="/portal/js/app.js"></script>
 </body>
 </html>

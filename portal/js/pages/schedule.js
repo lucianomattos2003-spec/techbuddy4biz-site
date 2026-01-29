@@ -65,7 +65,7 @@ window.Schedule = {
             </h3>
             
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              ${PortalConfig.PLATFORMS.map(p => `
+              ${PortalConfig.getEnabledPlatforms().map(p => `
                 <div>
                   <label class="block text-sm text-gray-400 mb-2">${p.icon} ${p.name}</label>
                   <select id="frequency-${p.id}" name="frequency_${p.id}" class="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue">
@@ -218,7 +218,7 @@ window.Schedule = {
             </label>
           </div>
           <div class="flex flex-wrap gap-2 day-platforms ${dayConfig.enabled ? '' : 'opacity-50'}" data-day="${day}">
-            ${PortalConfig.PLATFORMS.map(p => `
+            ${PortalConfig.getEnabledPlatforms().map(p => `
               <label class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-full cursor-pointer hover:bg-slate-700 transition-colors">
                 <input type="checkbox" name="${day}_${p.id}" ${dayConfig.platforms?.includes(p.id) ? 'checked' : ''}
                   class="w-4 h-4 rounded bg-slate-900 border-slate-600 text-brandBlue focus:ring-brandBlue"
@@ -249,7 +249,7 @@ window.Schedule = {
     });
     
     // Frequency
-    PortalConfig.PLATFORMS.forEach(p => {
+    PortalConfig.getEnabledPlatforms().forEach(p => {
       const select = document.getElementById(`frequency-${p.id}`);
       if (select) {
         select.value = this.schedule.frequency?.[p.id] ?? 1;
@@ -309,7 +309,7 @@ window.Schedule = {
       const dayEnabled = document.querySelector(`input[name="day_${day}"]`)?.checked || false;
       const platforms = [];
       
-      PortalConfig.PLATFORMS.forEach(p => {
+      PortalConfig.getEnabledPlatforms().forEach(p => {
         const cb = document.querySelector(`input[name="${day}_${p.id}"]`);
         if (cb?.checked) platforms.push(p.id);
       });
@@ -318,8 +318,8 @@ window.Schedule = {
     });
     
     const frequency = {};
-    PortalConfig.PLATFORMS.forEach(p => {
-      frequency[p.id] = parseInt(document.getElementById(`frequency-${p.id}`).value) || 0;
+    PortalConfig.getEnabledPlatforms().forEach(p => {
+      frequency[p.id] = parseInt(document.getElementById(`frequency-${p.id}`)?.value) || 0;
     });
     
     const posting_times = [];

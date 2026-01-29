@@ -1,6 +1,6 @@
 /**
  * Posts List Page
- * Shows all posts with filtering and search
+ * Shows all posts with filtering, search, and bulk actions
  */
 
 window.Posts = {
@@ -8,6 +8,8 @@ window.Posts = {
     status: '',
     platform: ''
   },
+  selectedPosts: new Set(),
+  allPosts: [],
   
   async render(container) {
     container.innerHTML = `
@@ -39,13 +41,35 @@ window.Posts = {
           
           <select id="filter-platform" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent">
             <option value="">All Platforms</option>
-            ${PortalConfig.PLATFORMS.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            ${PortalConfig.getEnabledPlatforms().map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
           </select>
           
           <button id="refresh-posts" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2">
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
             Refresh
           </button>
+        </div>
+        
+        <!-- Bulk Actions Bar (hidden by default) -->
+        <div id="bulk-actions-bar" class="hidden bg-brandBlue/20 border border-brandBlue/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <span id="selection-count" class="font-medium">0 selected</span>
+            <button id="clear-selection" class="text-sm text-gray-400 hover:text-white underline">Clear</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button id="bulk-approve" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg transition-colors flex items-center gap-2">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              Approve
+            </button>
+            <button id="bulk-skip" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg transition-colors flex items-center gap-2">
+              <i data-lucide="skip-forward" class="w-4 h-4"></i>
+              Skip
+            </button>
+            <button id="bulk-delete" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg transition-colors flex items-center gap-2">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              Delete
+            </button>
+          </div>
         </div>
         
         <!-- Posts List -->
@@ -59,20 +83,36 @@ window.Posts = {
     
     lucide.createIcons();
     
+    // Reset selection
+    this.selectedPosts.clear();
+    
     // Bind events
     document.getElementById('filter-status').addEventListener('change', (e) => {
       this.filters.status = e.target.value;
+      this.selectedPosts.clear();
       this.loadPosts();
     });
     
     document.getElementById('filter-platform').addEventListener('change', (e) => {
       this.filters.platform = e.target.value;
+      this.selectedPosts.clear();
       this.loadPosts();
     });
     
     document.getElementById('refresh-posts').addEventListener('click', () => {
+      this.selectedPosts.clear();
       this.loadPosts();
     });
+    
+    // Bulk action handlers
+    document.getElementById('clear-selection').addEventListener('click', () => {
+      this.selectedPosts.clear();
+      this.updateSelectionUI();
+    });
+    
+    document.getElementById('bulk-approve').addEventListener('click', () => this.performBulkAction('approve'));
+    document.getElementById('bulk-skip').addEventListener('click', () => this.performBulkAction('skip'));
+    document.getElementById('bulk-delete').addEventListener('click', () => this.performBulkAction('delete'));
     
     // Load posts
     await this.loadPosts();
@@ -89,6 +129,7 @@ window.Posts = {
     try {
       const data = await API.listPosts(this.filters);
       const posts = data?.posts || [];
+      this.allPosts = posts;
       
       if (posts.length === 0) {
         listContainer.innerHTML = `
@@ -103,16 +144,52 @@ window.Posts = {
           </div>
         `;
         lucide.createIcons();
+        this.updateSelectionUI();
         return;
       }
       
+      // Get selectable posts (not posted or publishing)
+      const selectablePosts = posts.filter(p => !['posted', 'publishing'].includes(p.status));
+      
       listContainer.innerHTML = `
+        <!-- Select All Header -->
+        <div class="p-3 border-b border-slate-700 bg-slate-800/80 flex items-center gap-3">
+          <input type="checkbox" id="select-all-posts" 
+            class="w-5 h-5 rounded border-slate-500 bg-slate-700 text-brandBlue focus:ring-brandBlue cursor-pointer"
+            ${selectablePosts.length > 0 && selectablePosts.every(p => this.selectedPosts.has(p.post_id)) ? 'checked' : ''}>
+          <label for="select-all-posts" class="text-sm text-gray-400 cursor-pointer">
+            Select all (${selectablePosts.length} selectable)
+          </label>
+        </div>
         <div class="divide-y divide-slate-700">
           ${posts.map(post => this.renderPostRow(post)).join('')}
         </div>
       `;
       
       lucide.createIcons();
+      
+      // Bind select all checkbox
+      document.getElementById('select-all-posts').addEventListener('change', (e) => {
+        if (e.target.checked) {
+          selectablePosts.forEach(p => this.selectedPosts.add(p.post_id));
+        } else {
+          this.selectedPosts.clear();
+        }
+        this.updateSelectionUI();
+      });
+      
+      // Bind individual checkboxes
+      listContainer.querySelectorAll('.post-checkbox').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+          const postId = e.target.dataset.postId;
+          if (e.target.checked) {
+            this.selectedPosts.add(postId);
+          } else {
+            this.selectedPosts.delete(postId);
+          }
+          this.updateSelectionUI();
+        });
+      });
       
       // Bind delete buttons
       listContainer.querySelectorAll('.delete-post-btn').forEach(btn => {
@@ -122,6 +199,8 @@ window.Posts = {
           this.deletePost(btn.dataset.postId);
         });
       });
+      
+      this.updateSelectionUI();
       
     } catch (error) {
       listContainer.innerHTML = `
@@ -139,10 +218,22 @@ window.Posts = {
     const scheduledDate = post.scheduled_at ? new Date(post.scheduled_at) : null;
     const isPast = scheduledDate && scheduledDate < new Date();
     const canEdit = !['posted', 'publishing', 'cancelled'].includes(post.status);
+    const canSelect = !['posted', 'publishing'].includes(post.status);
+    const isSelected = this.selectedPosts.has(post.post_id);
     
     return `
-      <div class="p-4 hover:bg-slate-700/30 transition-colors">
+      <div class="p-4 hover:bg-slate-700/30 transition-colors ${isSelected ? 'bg-brandBlue/10' : ''}">
         <div class="flex items-start gap-4">
+          <!-- Checkbox -->
+          ${canSelect ? `
+            <input type="checkbox" 
+              class="post-checkbox w-5 h-5 mt-1 rounded border-slate-500 bg-slate-700 text-brandBlue focus:ring-brandBlue cursor-pointer flex-shrink-0"
+              data-post-id="${post.post_id}"
+              ${isSelected ? 'checked' : ''}>
+          ` : `
+            <div class="w-5 h-5 mt-1 flex-shrink-0"></div>
+          `}
+          
           <!-- Media Preview -->
           ${post.media_urls?.[0]?.url ? `
             <img src="${post.media_urls[0].url}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
@@ -207,9 +298,83 @@ window.Posts = {
     try {
       await API.deletePost(postId);
       UI.toast('Post deleted', 'success');
+      this.selectedPosts.delete(postId);
       this.loadPosts();
     } catch (error) {
       UI.toast('Failed to delete post: ' + error.message, 'error');
+    }
+  },
+  
+  updateSelectionUI() {
+    const bulkBar = document.getElementById('bulk-actions-bar');
+    const countSpan = document.getElementById('selection-count');
+    const selectAllCb = document.getElementById('select-all-posts');
+    
+    const count = this.selectedPosts.size;
+    
+    if (count > 0) {
+      bulkBar?.classList.remove('hidden');
+      if (countSpan) countSpan.textContent = `${count} selected`;
+    } else {
+      bulkBar?.classList.add('hidden');
+    }
+    
+    // Update select all checkbox state
+    if (selectAllCb) {
+      const selectablePosts = this.allPosts.filter(p => !['posted', 'publishing'].includes(p.status));
+      selectAllCb.checked = selectablePosts.length > 0 && selectablePosts.every(p => this.selectedPosts.has(p.post_id));
+      selectAllCb.indeterminate = count > 0 && count < selectablePosts.length;
+    }
+    
+    // Update individual checkboxes
+    document.querySelectorAll('.post-checkbox').forEach(cb => {
+      cb.checked = this.selectedPosts.has(cb.dataset.postId);
+      const row = cb.closest('.p-4');
+      if (row) {
+        row.classList.toggle('bg-brandBlue/10', cb.checked);
+      }
+    });
+    
+    lucide.createIcons();
+  },
+  
+  async performBulkAction(action) {
+    const count = this.selectedPosts.size;
+    if (count === 0) return;
+    
+    const actionLabels = {
+      approve: 'approve',
+      skip: 'skip',
+      delete: 'delete'
+    };
+    
+    const confirmed = await UI.confirm(
+      `Are you sure you want to ${actionLabels[action]} ${count} post${count > 1 ? 's' : ''}?`,
+      `Bulk ${action.charAt(0).toUpperCase() + action.slice(1)}`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      const postIds = Array.from(this.selectedPosts);
+      const result = await API.bulkPostAction(action, postIds);
+      
+      if (result.success_count > 0) {
+        UI.toast(`${result.success_count} post${result.success_count > 1 ? 's' : ''} ${action}${action === 'skip' ? 'ped' : action === 'approve' ? 'd' : 'd'}`, 'success');
+      }
+      
+      if (result.failed_count > 0) {
+        UI.toast(`${result.failed_count} post${result.failed_count > 1 ? 's' : ''} failed`, 'warning');
+        console.warn('Bulk action failures:', result.failed);
+      }
+      
+      this.selectedPosts.clear();
+      this.loadPosts();
+      
+      // Refresh approval badge
+      if (typeof refreshApprovalBadge === 'function') refreshApprovalBadge();
+    } catch (error) {
+      UI.toast('Bulk action failed: ' + error.message, 'error');
     }
   }
 };
