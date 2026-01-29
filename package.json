@@ -1,0 +1,22 @@
+{
+  "name": "techbuddy4biz-portal",
+  "version": "1.0.0",
+  "description": "TechBuddy4Biz client portal with social post scheduling",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'No build step for static site'",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cloudinary": "^1.41.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.4.0",
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

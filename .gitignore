@@ -37,3 +37,7 @@ build/
 *.key
 secrets.json
 credentials.json
+
+# Netlify
+.netlify/
+netlify/.cache/
