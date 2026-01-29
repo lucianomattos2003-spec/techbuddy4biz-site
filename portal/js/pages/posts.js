@@ -236,7 +236,21 @@ window.Posts = {
           
           <!-- Media Preview -->
           ${post.media_urls?.[0]?.url ? `
-            <img src="${post.media_urls[0].url}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">
+            <div class="relative w-16 h-16 flex-shrink-0">
+              <img src="${post.media_urls[0].url}" class="w-full h-full rounded-lg object-cover">
+              ${post.post_type === 'carousel' && post.media_urls.length > 1 ? `
+                <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-purple-500 rounded text-xs font-bold flex items-center justify-center">
+                  ${post.media_urls.length}
+                </div>
+              ` : ''}
+              ${post.post_type === 'video' ? `
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="w-6 h-6 bg-black/60 rounded-full flex items-center justify-center">
+                    <i data-lucide="play" class="w-3 h-3"></i>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
           ` : `
             <div class="w-16 h-16 bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0">
               <i data-lucide="file-text" class="w-6 h-6 text-gray-500"></i>
@@ -250,7 +264,8 @@ window.Posts = {
               <a href="#/posts/${post.post_id}" class="font-medium hover:text-brandBlue transition-colors">
                 ${post.subject || 'Untitled Post'}
               </a>
-              ${post.post_type === 'carousel' ? '<span class="text-xs bg-slate-700 px-2 py-0.5 rounded">Carousel</span>' : ''}
+              ${post.post_type === 'carousel' ? `<span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="layers" class="w-3 h-3"></i>${post.media_urls?.length || 0} slides</span>` : ''}
+              ${post.post_type === 'video' ? '<span class="text-xs bg-pink-500/20 text-pink-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="video" class="w-3 h-3"></i>Video</span>' : ''}
             </div>
             <p class="text-sm text-gray-400 line-clamp-2 mb-2">${UI.truncate(post.caption, 120)}</p>
             <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
