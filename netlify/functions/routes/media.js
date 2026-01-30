@@ -37,7 +37,7 @@ export async function listMedia(request) {
   const db = getAdminClient();
   let query = db
     .from('social_assets')
-    .select('asset_id, cloudinary_url, cloudinary_public_id, filename, mime_type, size_bytes, tags, created_at')
+    .select('asset_id, url, public_id, filename, mime_type, size_bytes, tags, created_at')
     .eq('client_id', client_id)
     .order('created_at', { ascending: false });
 
@@ -66,7 +66,14 @@ export async function listMedia(request) {
     return error('Failed to fetch media', 500);
   }
 
-  return json({ assets, count: assets.length, limit, offset });
+  // Transform DB column names to API response names for frontend compatibility
+  const transformedAssets = (assets || []).map(asset => ({
+    ...asset,
+    cloudinary_url: asset.url,              // Map 'url' to 'cloudinary_url' for frontend
+    cloudinary_public_id: asset.public_id   // Map 'public_id' to 'cloudinary_public_id' for frontend
+  }));
+
+  return json({ assets: transformedAssets, count: transformedAssets.length, limit, offset });
 }
 
 /**
@@ -94,10 +101,11 @@ export async function saveMediaRecord(request) {
 
   const db = getAdminClient();
 
+  // Map API field names to database column names
   const assetData = {
     client_id,
-    cloudinary_url: body.cloudinary_url,
-    cloudinary_public_id: body.cloudinary_public_id,
+    url: body.cloudinary_url,              // DB column is 'url', API uses 'cloudinary_url'
+    public_id: body.cloudinary_public_id,  // DB column is 'public_id', API uses 'cloudinary_public_id'
     filename: body.filename || null,
     mime_type: body.mime_type || null,
     size_bytes: body.size_bytes || null,

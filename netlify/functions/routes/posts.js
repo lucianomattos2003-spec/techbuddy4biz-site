@@ -186,7 +186,7 @@ export async function createPost(request) {
     media_urls: mediaUrls,
     client_provided_media_urls: mediaUrls,
     thumbnail_url: thumbnailUrl,
-    media_source: hasMedia ? 'client' : null,  // 'client' for manual uploads, 'ai_generated' for AI
+    media_source: hasMedia ? 'client_uploaded' : null,  // 'client_uploaded' for manual uploads, 'ai_generated' for AI
     scheduled_at: body.scheduled_at,
     post_type: body.post_type || 'single_image',
     input_mode: 'manual',
