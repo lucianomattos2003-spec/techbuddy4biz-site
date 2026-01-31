@@ -278,6 +278,14 @@ export default async function handler(request, context) {
     if (path === '/posts/bulk' && method === 'POST') {
       return posts.bulkAction(request);
     }
+    if (path.match(/^\/posts\/[\w-]+\/approve$/) && method === 'POST') {
+      const postId = path.split('/')[2];
+      return posts.approvePost(request, postId);
+    }
+    if (path.match(/^\/posts\/[\w-]+\/reject$/) && method === 'POST') {
+      const postId = path.split('/')[2];
+      return posts.rejectPost(request, postId);
+    }
     if (path.match(/^\/posts\/[\w-]+$/) && method === 'GET') {
       const postId = path.split('/')[2];
       return posts.getPost(request, postId);
@@ -314,6 +322,9 @@ export default async function handler(request, context) {
     // Schedule routes
     if (path === '/schedule' && method === 'GET') {
       return schedule.getSchedule(request);
+    }
+    if (path === '/schedule/platforms' && method === 'GET') {
+      return schedule.getEnabledPlatforms(request);
     }
     if (path === '/schedule' && method === 'PUT') {
       return schedule.updateSchedule(request);

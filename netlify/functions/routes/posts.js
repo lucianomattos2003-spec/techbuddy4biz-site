@@ -117,8 +117,11 @@ export async function getPost(request, postId) {
  *   subject: string (optional),
  *   post_type: 'single_image' | 'carousel' | 'video' | 'text' (default: single_image)
  * }
- * 
- * Creates a task in the `tasks` table for n8n to process.
+ *
+ * ✅ ARCHITECTURE COMPLIANCE:
+ * Creates a task in the `tasks` table for n8n Task Runner to process.
+ * Does NOT directly insert into social_posts (managed table).
+ * The n8n workflow will create the post with proper validation.
  */
 export async function createPost(request) {
   const authResult = await requireAuth(request);
@@ -140,7 +143,8 @@ export async function createPost(request) {
   if (!body?.scheduled_at) return error('scheduled_at is required');
 
   const validPlatforms = ['instagram', 'linkedin', 'facebook', 'twitter', 'tiktok'];
-  if (!validPlatforms.includes(body.platform.toLowerCase())) {
+  const platform = body.platform.toLowerCase();
+  if (!validPlatforms.includes(platform)) {
     return error(`Invalid platform. Must be one of: ${validPlatforms.join(', ')}`);
   }
 
@@ -155,90 +159,118 @@ export async function createPost(request) {
 
   const db = getAdminClient();
 
-  // Get client's schedule config for approval settings
+  // Verify platform is enabled for this client
   const { data: scheduleConfig } = await db
     .from('social_schedules')
-    .select('approval_mode, auto_approve_manual_posts')
+    .select('schedule_id, platform, is_active, approval_mode, auto_approve_manual_posts')
     .eq('client_id', client_id)
-    .eq('platform', body.platform.toLowerCase())
+    .eq('platform', platform)
     .eq('is_active', true)
     .single();
 
-  // Determine approval status based on schedule config
-  // For manual posts (input_mode = 'manual'), auto-approve if configured
-  const autoApprove = scheduleConfig?.auto_approve_manual_posts ?? true;
-  const approvalStatus = autoApprove ? 'approved' : 'pending';
-  const now = new Date().toISOString();
-
-  // Determine media source and get thumbnail
-  const mediaUrls = body.media_urls || [];
-  const hasMedia = mediaUrls.length > 0;
-  const thumbnailUrl = hasMedia ? mediaUrls[0]?.url : null;
-
-  // Prepare post data
-  const postData = {
-    client_id,
-    platform: body.platform.toLowerCase(),
-    subject: body.subject || null,
-    caption: body.caption,
-    client_provided_caption: body.caption,
-    client_provided_subject: body.subject || null,
-    media_urls: mediaUrls,
-    client_provided_media_urls: mediaUrls,
-    thumbnail_url: thumbnailUrl,
-    media_source: hasMedia ? 'client_uploaded' : null,  // 'client_uploaded' for manual uploads, 'ai_generated' for AI
-    scheduled_at: body.scheduled_at,
-    post_type: body.post_type || 'single_image',
-    input_mode: 'manual',
-    status: 'ready',
-    approval_status: approvalStatus,
-    // Set approval fields when auto-approved
-    approved_at: autoApprove ? now : null,
-    approved_by: autoApprove ? 'system' : null,
-    approval_responded_at: autoApprove ? now : null
-  };
-
-  // Insert post directly into social_posts
-  const { data: post, error: postError } = await db
-    .from('social_posts')
-    .insert(postData)
-    .select()
-    .single();
-
-  if (postError) {
-    console.error('Create post error:', postError);
-    return error('Failed to create post', 500);
+  if (!scheduleConfig) {
+    return error(`Platform '${platform}' is not enabled for this client. Please enable it in Settings first.`, 403);
   }
 
-  // Create a publish task for n8n to pick up at scheduled time
+  // Validate carousel posts (Phase 3 requirement)
+  const postType = body.post_type || 'single_image';
+  const mediaUrls = body.media_urls || [];
+
+  if (postType === 'carousel') {
+    if (mediaUrls.length < 2) {
+      return error('Carousel posts require at least 2 images', 400);
+    }
+    if (mediaUrls.length > 10) {
+      return error('Carousel posts cannot exceed 10 images', 400);
+    }
+  }
+
+  // Validate platform-specific limits
+  const validationError = await validatePlatformLimits(db, platform, body.caption, mediaUrls, postType);
+  if (validationError) {
+    return error(validationError, 400);
+  }
+
+  // ✅ CREATE TASK FOR N8N - NOT DIRECT POST INSERT
+  // The Task Runner will create the post with all proper business logic
   const taskPayload = {
-    post_id: post.post_id,
-    client_id,
-    platform: post.platform,
-    scheduled_at: post.scheduled_at
+    platform,
+    post_type: postType,
+    client_caption: body.caption,
+    client_subject: body.subject || 'Manual Post',
+    client_media_urls: mediaUrls,
+    scheduled_at: body.scheduled_at,
+    input_mode: 'full_manual' // Manual content from web UI
   };
 
-  const { error: taskError } = await db
+  const { data: task, error: taskError } = await db
     .from('tasks')
     .insert({
       client_id,
-      task_type: 'publish_social_post',
-      channel: `${post.platform}_dm`,
-      due_at: post.scheduled_at,
+      task_type: 'generate_social_content',
+      channel: `${platform}_dm`,
+      due_at: new Date().toISOString(), // Process immediately
       status: 'scheduled',
       payload: taskPayload,
       max_attempts: 3
-    });
+    })
+    .select('task_id, created_at')
+    .single();
 
   if (taskError) {
     console.error('Create task error:', taskError);
-    // Post was created, just log the task error
+    return error('Failed to create post task', 500);
   }
 
   return created({
-    post,
-    message: 'Post created and scheduled'
+    task_id: task.task_id,
+    platform,
+    scheduled_at: body.scheduled_at,
+    message: 'Post creation queued. The post will be created shortly and appear in your dashboard.',
+    status: 'processing'
   });
+}
+
+/**
+ * Validate post against platform-specific limits
+ * Queries social_platform_config table for constraints
+ */
+async function validatePlatformLimits(db, platform, caption, mediaUrls, postType) {
+  // Get platform limits from global config table
+  const { data: platformConfig } = await db
+    .from('social_platform_config')
+    .select('limits')
+    .eq('platform', platform)
+    .single();
+
+  if (!platformConfig?.limits) {
+    // No limits configured - allow it
+    return null;
+  }
+
+  const limits = platformConfig.limits;
+
+  // Validate caption length
+  if (caption && limits.max_caption_length && caption.length > limits.max_caption_length) {
+    return `Caption exceeds ${limits.max_caption_length} characters for ${platform}`;
+  }
+
+  // Validate hashtag count
+  if (caption && limits.max_hashtags) {
+    const hashtagCount = (caption.match(/#/g) || []).length;
+    if (hashtagCount > limits.max_hashtags) {
+      return `Too many hashtags (${hashtagCount}). ${platform} allows max ${limits.max_hashtags}`;
+    }
+  }
+
+  // Validate carousel slides
+  if (postType === 'carousel' && limits.max_carousel_slides) {
+    if (mediaUrls.length > limits.max_carousel_slides) {
+      return `Carousel cannot exceed ${limits.max_carousel_slides} slides for ${platform}`;
+    }
+  }
+
+  return null; // Validation passed
 }
 
 /**
@@ -372,7 +404,11 @@ export async function deletePost(request, postId) {
   // Mark post as cancelled (soft delete)
   let deleteQuery = db
     .from('social_posts')
-    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .update({
+      status: 'cancelled',
+      approval_status: 'rejected', // Use 'rejected' - 'skipped' is not a valid enum value
+      updated_at: new Date().toISOString()
+    })
     .eq('post_id', postId);
   
   if (!isAdmin) {
@@ -389,11 +425,139 @@ export async function deletePost(request, postId) {
   return noContent();
 }
 /**
+ * Approve a single post
+ * POST /api/posts/:id/approve
+ *
+ * ✅ ARCHITECTURE COMPLIANCE:
+ * Uses process_approval_response() database function instead of direct UPDATE
+ */
+export async function approvePost(request, postId) {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof Response) return authResult;
+
+  const { client_id, isAdmin } = authResult;
+  const db = getAdminClient();
+
+  // Get post and verify access
+  let query = db
+    .from('social_posts')
+    .select('post_id, client_id, approval_token, approval_status, status')
+    .eq('post_id', postId);
+
+  if (!isAdmin) {
+    query = query.eq('client_id', client_id);
+  }
+
+  const { data: post, error: fetchError } = await query.single();
+
+  if (fetchError || !post) {
+    return notFound('Post not found');
+  }
+
+  if (post.status === 'posted' || post.status === 'publishing') {
+    return error('Cannot approve a post that is already posted or publishing', 400);
+  }
+
+  if (post.approval_status === 'approved') {
+    return json({ success: true, message: 'Post already approved', post_id: postId });
+  }
+
+  // ✅ USE DATABASE FUNCTION - NOT DIRECT UPDATE
+  // This ensures all business logic in the DB function is executed
+  const { data: result, error: dbError } = await db.rpc('process_approval_response', {
+    p_post_id: postId,
+    p_token: post.approval_token,
+    p_action: 'approve',
+    p_responded_by: 'dashboard'
+  });
+
+  if (dbError) {
+    console.error('Approval function error:', dbError);
+    return error(`Approval failed: ${dbError.message}`, 500);
+  }
+
+  if (!result || result.length === 0 || !result[0]?.success) {
+    return error(result?.[0]?.message || 'Approval failed', 400);
+  }
+
+  const response = result[0];
+
+  return json({
+    success: true,
+    post_id: response.post_id,
+    scheduled_at: response.scheduled_at,
+    publish_task_id: response.publish_task_id,
+    message: 'Post approved successfully'
+  });
+}
+
+/**
+ * Reject a single post
+ * POST /api/posts/:id/reject
+ *
+ * ✅ ARCHITECTURE COMPLIANCE:
+ * Uses process_approval_response() database function
+ */
+export async function rejectPost(request, postId) {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof Response) return authResult;
+
+  const { client_id, isAdmin } = authResult;
+  const db = getAdminClient();
+
+  // Get post and verify access
+  let query = db
+    .from('social_posts')
+    .select('post_id, client_id, approval_token, approval_status, status')
+    .eq('post_id', postId);
+
+  if (!isAdmin) {
+    query = query.eq('client_id', client_id);
+  }
+
+  const { data: post, error: fetchError } = await query.single();
+
+  if (fetchError || !post) {
+    return notFound('Post not found');
+  }
+
+  if (post.status === 'posted') {
+    return error('Cannot reject a post that has already been posted', 400);
+  }
+
+  // ✅ USE DATABASE FUNCTION
+  const { data: result, error: dbError } = await db.rpc('process_approval_response', {
+    p_post_id: postId,
+    p_token: post.approval_token,
+    p_action: 'skip', // 'skip' or 'reject' both work
+    p_responded_by: 'dashboard'
+  });
+
+  if (dbError) {
+    console.error('Rejection function error:', dbError);
+    return error(`Rejection failed: ${dbError.message}`, 500);
+  }
+
+  if (!result || result.length === 0 || !result[0]?.success) {
+    return error(result?.[0]?.message || 'Rejection failed', 400);
+  }
+
+  return json({
+    success: true,
+    post_id: postId,
+    message: 'Post rejected successfully'
+  });
+}
+
+/**
  * Bulk operations on multiple posts
  * Body: {
  *   action: 'delete' | 'skip' | 'approve' | 'reject',
  *   post_ids: string[] (required)
  * }
+ *
+ * ✅ ARCHITECTURE COMPLIANCE:
+ * Uses process_approval_response() for approve/reject actions
  */
 export async function bulkAction(request) {
   const authResult = await requireAuth(request);
@@ -420,15 +584,15 @@ export async function bulkAction(request) {
       // First verify post exists and user has access
       let checkQuery = db
         .from('social_posts')
-        .select('post_id, status, client_id')
+        .select('post_id, status, client_id, approval_token, approval_status')
         .eq('post_id', postId);
-      
+
       if (!isAdmin) {
         checkQuery = checkQuery.eq('client_id', client_id);
       }
-      
+
       const { data: post } = await checkQuery.single();
-      
+
       if (!post) {
         results.failed.push({ post_id: postId, reason: 'Post not found or access denied' });
         continue;
@@ -442,13 +606,50 @@ export async function bulkAction(request) {
       }
 
       // Perform the action
-      const now = new Date().toISOString();
-      let updateData = { updated_at: now };
-      
-      switch (body.action) {
-        case 'delete':
-        case 'skip':
-          updateData.status = 'cancelled';
+      if (body.action === 'approve' || body.action === 'reject') {
+        // ✅ USE DATABASE FUNCTION for approvals
+        const action = body.action === 'approve' ? 'approve' : 'reject';
+
+        const { data: result, error: dbError } = await db.rpc('process_approval_response', {
+          p_post_id: postId,
+          p_token: post.approval_token,
+          p_action: action,
+          p_responded_by: 'dashboard'
+        });
+
+        if (dbError || !result?.[0]?.success) {
+          results.failed.push({
+            post_id: postId,
+            reason: dbError?.message || result?.[0]?.message || 'Function call failed'
+          });
+        } else {
+          results.success.push(postId);
+        }
+      } else if (body.action === 'delete' || body.action === 'skip') {
+        // For delete/skip, we can update directly (not workflow-managed state)
+        const now = new Date().toISOString();
+        console.log(`[SKIP] Processing ${body.action} for post ${postId}`);
+
+        let updateQuery = db
+          .from('social_posts')
+          .update({
+            status: 'cancelled',
+            approval_status: 'rejected', // Use 'rejected' - 'skipped' is not a valid enum value
+            updated_at: now
+          })
+          .eq('post_id', postId);
+
+        if (!isAdmin) {
+          updateQuery = updateQuery.eq('client_id', client_id);
+        }
+
+        const { data: updated, error: updateError } = await updateQuery.select('post_id, status, approval_status');
+
+        console.log(`[SKIP] Update result for ${postId}:`, { updated, error: updateError?.message });
+
+        if (updateError) {
+          results.failed.push({ post_id: postId, reason: updateError.message });
+        } else {
           // Cancel associated tasks
           await db
             .from('tasks')
@@ -456,42 +657,9 @@ export async function bulkAction(request) {
             .eq('payload->>post_id', postId)
             .eq('task_type', 'publish_social_post')
             .in('status', ['scheduled', 'pending']);
-          break;
-        case 'approve':
-          updateData.approval_status = 'approved';
-          updateData.approved_at = now;
-          updateData.approved_by = authResult.user_id || 'portal_user';
-          updateData.approval_responded_at = now;
-          break;
-        case 'reject':
-          updateData.approval_status = 'rejected';
-          updateData.status = 'cancelled';
-          updateData.approval_responded_at = now;
-          // Cancel associated tasks
-          await db
-            .from('tasks')
-            .update({ status: 'cancelled' })
-            .eq('payload->>post_id', postId)
-            .eq('task_type', 'publish_social_post')
-            .in('status', ['scheduled', 'pending']);
-          break;
-      }
 
-      let updateQuery = db
-        .from('social_posts')
-        .update(updateData)
-        .eq('post_id', postId);
-      
-      if (!isAdmin) {
-        updateQuery = updateQuery.eq('client_id', client_id);
-      }
-
-      const { error: updateError } = await updateQuery;
-
-      if (updateError) {
-        results.failed.push({ post_id: postId, reason: updateError.message });
-      } else {
-        results.success.push(postId);
+          results.success.push(postId);
+        }
       }
     } catch (e) {
       results.failed.push({ post_id: postId, reason: e.message });

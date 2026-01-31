@@ -13,6 +13,7 @@ import { json, error, parseBody } from '../../lib/response.js';
  * Get client's posting schedule configuration
  * Query params:
  *   - platform: filter by platform (optional, returns all if not specified)
+ *   - enabled_only: if true, returns only is_active=true platforms
  */
 export async function getSchedule(request) {
   const authResult = await requireAuth(request);
@@ -21,6 +22,7 @@ export async function getSchedule(request) {
   const { client_id } = authResult;
   const url = new URL(request.url);
   const platform = url.searchParams.get('platform');
+  const enabledOnly = url.searchParams.get('enabled_only') === 'true';
 
   const db = getAdminClient();
   let query = db
@@ -30,6 +32,10 @@ export async function getSchedule(request) {
 
   if (platform) {
     query = query.eq('platform', platform.toLowerCase());
+  }
+
+  if (enabledOnly) {
+    query = query.eq('is_active', true);
   }
 
   const { data: schedules, error: dbError } = await query;
@@ -44,7 +50,53 @@ export async function getSchedule(request) {
     return json({ schedule: schedules[0] });
   }
 
-  return json({ schedules });
+  // Return both full schedules and just the enabled platform IDs for easy filtering
+  const enabledPlatformIds = schedules
+    .filter(s => s.is_active)
+    .map(s => s.platform);
+
+  return json({
+    schedules,
+    enabled_platforms: enabledPlatformIds
+  });
+}
+
+/**
+ * Get only enabled platforms for this client
+ * Used by frontend for platform filtering
+ * GET /api/schedule/platforms
+ */
+export async function getEnabledPlatforms(request) {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof Response) return authResult;
+
+  const { client_id } = authResult;
+  const db = getAdminClient();
+
+  // ✅ ARCHITECTURE COMPLIANCE:
+  // Query social_schedules to determine which platforms are enabled
+  // This is the SINGLE SOURCE OF TRUTH for platform enablement
+  const { data: schedules, error: dbError } = await db
+    .from('social_schedules')
+    .select('platform, is_active, approval_mode, auto_approve_manual_posts')
+    .eq('client_id', client_id)
+    .eq('is_active', true);
+
+  if (dbError) {
+    console.error('Get enabled platforms error:', dbError);
+    return error('Failed to fetch enabled platforms', 500);
+  }
+
+  const enabledPlatforms = (schedules || []).map(s => ({
+    platform: s.platform,
+    approval_mode: s.approval_mode,
+    auto_approve_manual_posts: s.auto_approve_manual_posts
+  }));
+
+  return json({
+    enabled_platforms: enabledPlatforms.map(p => p.platform),
+    platform_configs: enabledPlatforms
+  });
 }
 
 /**

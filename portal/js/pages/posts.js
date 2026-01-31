@@ -148,8 +148,11 @@ window.Posts = {
         return;
       }
       
-      // Get selectable posts (not posted or publishing)
-      const selectablePosts = posts.filter(p => !['posted', 'publishing'].includes(p.status));
+      // Get selectable posts (not posted, publishing, cancelled, or rejected)
+      const selectablePosts = posts.filter(p =>
+        !['posted', 'publishing', 'cancelled'].includes(p.status) &&
+        p.approval_status !== 'rejected'
+      );
       
       listContainer.innerHTML = `
         <!-- Select All Header -->
@@ -218,7 +221,9 @@ window.Posts = {
     const scheduledDate = post.scheduled_at ? new Date(post.scheduled_at) : null;
     const isPast = scheduledDate && scheduledDate < new Date();
     const canEdit = !['posted', 'publishing', 'cancelled'].includes(post.status);
-    const canSelect = !['posted', 'publishing'].includes(post.status);
+    // Don't allow selection of posted, publishing, cancelled, or rejected posts
+    const canSelect = !['posted', 'publishing', 'cancelled'].includes(post.status) &&
+                      post.approval_status !== 'rejected';
     const isSelected = this.selectedPosts.has(post.post_id);
     
     return `

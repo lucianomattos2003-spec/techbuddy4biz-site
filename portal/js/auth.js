@@ -61,7 +61,7 @@ window.Auth = {
       console.log('No access token found');
       return false;
     }
-    
+
     try {
       // Validate token with API
       const meData = await API.getMe();
@@ -70,11 +70,18 @@ window.Auth = {
         this.client = meData.client;
         this.user.role = meData.role;
         this.saveUserToStorage();
+
+        // ✅ LOAD ENABLED PLATFORMS AFTER AUTH
+        // This populates PortalConfig with client's enabled platforms
+        await API.loadEnabledPlatforms().catch(err => {
+          console.warn('Could not load enabled platforms:', err);
+        });
+
         return true;
       }
     } catch (e) {
       console.warn('Token validation failed:', e.message);
-      
+
       // Try to refresh token
       if (this.refreshToken && e.message?.includes('expired')) {
         const refreshed = await this.refreshAccessToken();
@@ -82,11 +89,11 @@ window.Auth = {
           return this.checkAuth();
         }
       }
-      
+
       // Clear invalid tokens
       this.clearAuth();
     }
-    
+
     return false;
   },
   
@@ -152,23 +159,28 @@ window.Auth = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.error || 'Login failed');
     }
-    
+
     // Store tokens
     this.accessToken = data.accessToken;
     this.refreshToken = data.refreshToken;
     this.user = data.user;
     this.client = { client_id: data.user.client_id, name: data.user.client_name };
     this.updateTokenExpiry();
-    
+
     this.saveToStorage();
     this.scheduleTokenRefresh();
-    
+
+    // ✅ LOAD ENABLED PLATFORMS AFTER LOGIN
+    await API.loadEnabledPlatforms().catch(err => {
+      console.warn('Could not load enabled platforms:', err);
+    });
+
     return data;
   },
   
@@ -181,21 +193,26 @@ window.Auth = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.error || 'Registration failed');
     }
-    
+
     // Auto-login after registration
     this.accessToken = data.accessToken;
     this.refreshToken = data.refreshToken;
     this.user = data.user;
-    
+
     this.saveToStorage();
     this.scheduleTokenRefresh();
-    
+
+    // ✅ LOAD ENABLED PLATFORMS AFTER REGISTRATION
+    await API.loadEnabledPlatforms().catch(err => {
+      console.warn('Could not load enabled platforms:', err);
+    });
+
     return data;
   },
   
@@ -369,12 +386,15 @@ window.Auth = {
     this.refreshToken = null;
     this.user = null;
     this.client = null;
-    
+
     if (this.tokenRefreshTimer) {
       clearTimeout(this.tokenRefreshTimer);
       this.tokenRefreshTimer = null;
     }
-    
+
+    // ✅ CLEAR ENABLED PLATFORMS ON LOGOUT
+    PortalConfig.clearEnabledPlatforms();
+
     localStorage.removeItem(this.STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(this.STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(this.STORAGE_KEYS.USER);

@@ -242,6 +242,18 @@ window.API = {
       body: JSON.stringify({ action, post_ids: postIds })
     });
   },
+
+  async approvePost(postId) {
+    return this.request(`/api/posts/${postId}/approve`, {
+      method: 'POST'
+    });
+  },
+
+  async rejectPost(postId) {
+    return this.request(`/api/posts/${postId}/reject`, {
+      method: 'POST'
+    });
+  },
   
   // ==================
   // Batches Endpoints
@@ -303,25 +315,32 @@ window.API = {
   },
   
   /**
+   * Get enabled platforms for the current client
+   * ✅ ARCHITECTURE COMPLIANCE:
+   * Queries social_schedules to get platforms with is_active=true
+   */
+  async getEnabledPlatforms() {
+    return this.request('/api/schedule/platforms');
+  },
+
+  /**
    * Load enabled platforms for the current client and store in PortalConfig
    * Returns array of enabled platform IDs
+   * ✅ Called on login to filter UI options
    */
   async loadEnabledPlatforms() {
     try {
-      const data = await this.getSchedule();
-      const schedules = data?.schedules || [];
-      
-      // Filter to only active platforms
-      const enabledPlatformIds = schedules
-        .filter(s => s.is_active === true)
-        .map(s => s.platform);
-      
+      const data = await this.getEnabledPlatforms();
+      const enabledPlatformIds = data?.enabled_platforms || [];
+
+      console.log('✅ Loaded enabled platforms:', enabledPlatformIds);
+
       // Store in PortalConfig for use across the app
       PortalConfig.setEnabledPlatforms(enabledPlatformIds);
-      
+
       return enabledPlatformIds;
     } catch (error) {
-      console.error('Failed to load enabled platforms:', error);
+      console.error('❌ Failed to load enabled platforms:', error);
       // Don't set anything - getEnabledPlatforms will return all as fallback
       return null;
     }
