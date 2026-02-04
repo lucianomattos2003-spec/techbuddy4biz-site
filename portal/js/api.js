@@ -205,6 +205,8 @@ window.API = {
     if (filters.platform) params.set('platform', filters.platform);
     if (filters.from) params.set('from', filters.from);
     if (filters.to) params.set('to', filters.to);
+    if (filters.created_from) params.set('created_from', filters.created_from);
+    if (filters.created_to) params.set('created_to', filters.created_to);
     if (filters.limit) params.set('limit', filters.limit);
     if (filters.offset) params.set('offset', filters.offset);
     
@@ -273,24 +275,44 @@ window.API = {
   // ==================
   // Media Endpoints
   // ==================
-  
+
   async listMedia(filters = {}) {
     const params = new URLSearchParams();
     if (filters.tags) params.set('tags', filters.tags);
     if (filters.type) params.set('type', filters.type);
+    if (filters.platform) params.set('platform', filters.platform);
+    if (filters.search) params.set('search', filters.search);
     if (filters.limit) params.set('limit', filters.limit);
-    
+    if (filters.offset) params.set('offset', filters.offset);
+
     const query = params.toString();
     return this.request(`/api/media${query ? '?' + query : ''}`);
   },
-  
+
+  async getMedia(assetId) {
+    return this.request(`/api/media/${assetId}`);
+  },
+
   async saveMediaRecord(mediaData) {
     return this.request('/api/media', {
       method: 'POST',
       body: JSON.stringify(mediaData)
     });
   },
-  
+
+  async updateMedia(assetId, updateData) {
+    return this.request(`/api/media/${assetId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData)
+    });
+  },
+
+  async deleteMedia(assetId) {
+    return this.request(`/api/media/${assetId}`, {
+      method: 'DELETE'
+    });
+  },
+
   async getSignedUploadParams(options = {}) {
     return this.request('/api/media/sign', {
       method: 'POST',
@@ -298,6 +320,54 @@ window.API = {
     });
   },
   
+  // ==================
+  // Unified Approvals Endpoints
+  // ==================
+
+  async listApprovals(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.type) params.set('type', filters.type);
+    if (filters.channel) params.set('channel', filters.channel);
+    if (filters.platform) params.set('platform', filters.platform);
+    if (filters.sort) params.set('sort', filters.sort);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.limit) params.set('limit', filters.limit);
+    if (filters.offset) params.set('offset', filters.offset);
+
+    const query = params.toString();
+    return this.request(`/api/portal/approvals${query ? '?' + query : ''}`);
+  },
+
+  async approveApprovalItem(type, id, editedContent = null) {
+    const body = editedContent ? { edited_content: editedContent } : {};
+    return this.request(`/api/portal/approvals/${type}/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  },
+
+  async rejectApprovalItem(type, id, reason = null) {
+    const body = reason ? { reason } : {};
+    return this.request(`/api/portal/approvals/${type}/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+  },
+
+  async bulkApproveItems(items) {
+    return this.request('/api/portal/approvals/bulk/approve', {
+      method: 'POST',
+      body: JSON.stringify({ items })
+    });
+  },
+
+  async bulkRejectItems(items) {
+    return this.request('/api/portal/approvals/bulk/reject', {
+      method: 'POST',
+      body: JSON.stringify({ items })
+    });
+  },
+
   // ==================
   // Schedule Endpoints
   // ==================

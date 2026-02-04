@@ -5,36 +5,43 @@
 
 window.Analytics = {
   period: 'month',
-  
+
+  // Helper function for translations
+  t(key, fallback) {
+    return window.PortalI18n ? PortalI18n.t(key, fallback) : fallback || key;
+  },
+
   async render(container) {
+    const t = this.t.bind(this);
+
     container.innerHTML = `
       <div class="space-y-6">
         <!-- Header -->
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 class="text-2xl lg:text-3xl font-bold">Analytics</h1>
-            <p class="text-gray-400 mt-1">Track your social media posting performance</p>
+            <h1 class="text-2xl lg:text-3xl font-bold">${t('analytics.title', 'Analytics')}</h1>
+            <p class="text-gray-400 mt-1">${t('analytics.subtitle', 'Track your social media posting performance')}</p>
           </div>
           <div class="flex items-center gap-3">
             <select id="period-select" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue">
-              <option value="week">This Week</option>
-              <option value="month" selected>This Month</option>
-              <option value="quarter">Last 3 Months</option>
-              <option value="year">This Year</option>
+              <option value="week">${t('analytics.thisWeek', 'This Week')}</option>
+              <option value="month" selected>${t('analytics.thisMonth', 'This Month')}</option>
+              <option value="quarter">${t('analytics.last3Months', 'Last 3 Months')}</option>
+              <option value="year">${t('analytics.thisYear', 'This Year')}</option>
             </select>
             <button id="refresh-analytics" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2">
               <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-              Refresh
+              ${t('analytics.refresh', 'Refresh')}
             </button>
           </div>
         </div>
-        
+
         <!-- Loading -->
         <div id="analytics-loading" class="p-8 text-center">
           <div class="loading-spinner mx-auto"></div>
-          <p class="text-gray-400 mt-3">Loading analytics...</p>
+          <p class="text-gray-400 mt-3">${t('analytics.loading', 'Loading analytics...')}</p>
         </div>
-        
+
         <!-- Analytics Content -->
         <div id="analytics-content" class="hidden space-y-6">
           <!-- Main Stats -->
@@ -44,84 +51,84 @@ window.Analytics = {
                 <div class="w-10 h-10 bg-brandBlue/20 rounded-lg flex items-center justify-center">
                   <i data-lucide="send" class="w-5 h-5 text-brandBlue"></i>
                 </div>
-                <span class="text-gray-400 text-sm">Total Posts</span>
+                <span class="text-gray-400 text-sm">${t('analytics.totalPosts', 'Total Posts')}</span>
               </div>
               <div id="stat-total" class="text-3xl font-bold">0</div>
             </div>
-            
+
             <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
               <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
                   <i data-lucide="check-circle" class="w-5 h-5 text-green-400"></i>
                 </div>
-                <span class="text-gray-400 text-sm">Posted</span>
+                <span class="text-gray-400 text-sm">${t('analytics.posted', 'Posted')}</span>
               </div>
               <div id="stat-posted" class="text-3xl font-bold text-green-400">0</div>
             </div>
-            
+
             <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
               <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
                   <i data-lucide="clock" class="w-5 h-5 text-yellow-400"></i>
                 </div>
-                <span class="text-gray-400 text-sm">Scheduled</span>
+                <span class="text-gray-400 text-sm">${t('analytics.scheduled', 'Scheduled')}</span>
               </div>
               <div id="stat-scheduled" class="text-3xl font-bold text-yellow-400">0</div>
             </div>
-            
+
             <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
               <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                   <i data-lucide="thumbs-up" class="w-5 h-5 text-purple-400"></i>
                 </div>
-                <span class="text-gray-400 text-sm">Approval Rate</span>
+                <span class="text-gray-400 text-sm">${t('analytics.approvalRate', 'Approval Rate')}</span>
               </div>
               <div id="stat-approval-rate" class="text-3xl font-bold text-purple-400">0%</div>
             </div>
           </div>
-          
+
           <!-- Charts Row -->
           <div class="grid lg:grid-cols-2 gap-6">
             <!-- Posts by Platform -->
             <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
               <h3 class="font-semibold mb-4 flex items-center gap-2">
                 <i data-lucide="pie-chart" class="w-5 h-5 text-brandBlue"></i>
-                Posts by Platform
+                ${t('analytics.postsByPlatform', 'Posts by Platform')}
               </h3>
               <div id="platform-chart" class="space-y-3">
                 <!-- Rendered dynamically -->
               </div>
             </div>
-            
+
             <!-- Posts by Status -->
             <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
               <h3 class="font-semibold mb-4 flex items-center gap-2">
                 <i data-lucide="bar-chart-3" class="w-5 h-5 text-brandBlue"></i>
-                Posts by Status
+                ${t('analytics.postsByStatus', 'Posts by Status')}
               </h3>
               <div id="status-chart" class="space-y-3">
                 <!-- Rendered dynamically -->
               </div>
             </div>
           </div>
-          
+
           <!-- Activity Chart -->
           <div class="bg-slate-800/50 rounded-xl p-5 border border-slate-700">
             <h3 class="font-semibold mb-4 flex items-center gap-2">
               <i data-lucide="activity" class="w-5 h-5 text-brandBlue"></i>
-              Posting Activity
+              ${t('analytics.postingActivity', 'Posting Activity')}
             </h3>
             <div id="activity-chart" class="h-48">
               <!-- Activity bar chart -->
             </div>
           </div>
-          
+
           <!-- Recent Posts Table -->
           <div class="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
             <div class="p-5 border-b border-slate-700">
               <h3 class="font-semibold flex items-center gap-2">
                 <i data-lucide="list" class="w-5 h-5 text-brandBlue"></i>
-                Recent Posts
+                ${t('analytics.recentPosts', 'Recent Posts')}
               </h3>
             </div>
             <div id="recent-posts" class="divide-y divide-slate-700">
@@ -174,9 +181,9 @@ window.Analytics = {
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       }
       
-      // Fetch all posts for the period
+      // Fetch all posts for the period (filter by created_at, not scheduled_at)
       const data = await API.listPosts({
-        from: startDate.toISOString(),
+        created_from: startDate.toISOString(),
         limit: 500
       });
       const posts = data?.posts || [];
@@ -195,11 +202,12 @@ window.Analytics = {
       content.classList.remove('hidden');
       
     } catch (error) {
+      const t = this.t.bind(this);
       loading.innerHTML = `
         <div class="text-red-400">
           <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-3"></i>
-          <p>Failed to load analytics: ${error.message}</p>
-          <button onclick="Analytics.loadAnalytics()" class="mt-4 text-brandBlue hover:underline">Try again</button>
+          <p>${t('analytics.failedLoad', 'Failed to load analytics')}: ${error.message}</p>
+          <button onclick="Analytics.loadAnalytics()" class="mt-4 text-brandBlue hover:underline">${t('analytics.tryAgain', 'Try again')}</button>
         </div>
       `;
       lucide.createIcons();
@@ -231,7 +239,7 @@ window.Analytics = {
     return {
       total: posts.length,
       posted: byStatus.posted || 0,
-      scheduled: byStatus.scheduled || 0,
+      scheduled: (byStatus.scheduled || 0) + (byStatus.ready || 0),
       failed: byStatus.failed || 0,
       approvalRate: totalApprovalDecisions > 0 
         ? Math.round((approved / totalApprovalDecisions) * 100) 
@@ -249,9 +257,10 @@ window.Analytics = {
   },
   
   renderPlatformChart(byPlatform) {
+    const t = this.t.bind(this);
     const container = document.getElementById('platform-chart');
     const total = Object.values(byPlatform).reduce((a, b) => a + b, 0) || 1;
-    
+
     const platforms = PortalConfig.getEnabledPlatforms();
     const bars = platforms.map(p => {
       const count = byPlatform[p.id] || 0;
@@ -269,23 +278,25 @@ window.Analytics = {
         </div>
       `;
     }).join('');
-    
-    container.innerHTML = bars || '<p class="text-gray-400 text-center py-4">No data</p>';
+
+    container.innerHTML = bars || `<p class="text-gray-400 text-center py-4">${t('analytics.noData', 'No data')}</p>`;
     lucide.createIcons({ nodes: [container] });
   },
   
   renderStatusChart(byStatus) {
+    const t = this.t.bind(this);
     const container = document.getElementById('status-chart');
     const total = Object.values(byStatus).reduce((a, b) => a + b, 0) || 1;
-    
+
     const statuses = [
-      { id: 'posted', label: 'Posted', color: '#22c55e' },
-      { id: 'scheduled', label: 'Scheduled', color: '#0ea5e9' },
-      { id: 'pending', label: 'Pending', color: '#eab308' },
-      { id: 'failed', label: 'Failed', color: '#ef4444' },
-      { id: 'cancelled', label: 'Cancelled', color: '#6b7280' }
+      { id: 'posted', label: t('analytics.posted', 'Posted'), color: '#22c55e' },
+      { id: 'scheduled', label: t('analytics.scheduled', 'Scheduled'), color: '#0ea5e9' },
+      { id: 'ready', label: t('analytics.ready', 'Ready'), color: '#eab308' },
+      { id: 'pending', label: t('analytics.pending', 'Pending'), color: '#9ca3af' },
+      { id: 'failed', label: t('analytics.failed', 'Failed'), color: '#ef4444' },
+      { id: 'cancelled', label: t('analytics.cancelled', 'Cancelled'), color: '#6b7280' }
     ];
-    
+
     const bars = statuses.map(s => {
       const count = byStatus[s.id] || 0;
       if (count === 0) return '';
@@ -300,8 +311,8 @@ window.Analytics = {
         </div>
       `;
     }).filter(Boolean).join('');
-    
-    container.innerHTML = bars || '<p class="text-gray-400 text-center py-4">No data</p>';
+
+    container.innerHTML = bars || `<p class="text-gray-400 text-center py-4">${t('analytics.noData', 'No data')}</p>`;
   },
   
   renderActivityChart(posts, startDate, endDate) {
@@ -355,10 +366,11 @@ window.Analytics = {
   },
   
   renderRecentPosts(posts) {
+    const t = this.t.bind(this);
     const container = document.getElementById('recent-posts');
-    
+
     if (posts.length === 0) {
-      container.innerHTML = '<p class="text-gray-400 text-center py-8">No posts found</p>';
+      container.innerHTML = `<p class="text-gray-400 text-center py-8">${t('analytics.noPostsFound', 'No posts found')}</p>`;
       return;
     }
     

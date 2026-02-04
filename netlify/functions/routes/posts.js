@@ -17,8 +17,10 @@ import { json, created, noContent, error, notFound, parseBody } from '../../lib/
  * Query params:
  *   - status: filter by post status (scheduled, posted, failed, etc.)
  *   - platform: filter by platform (instagram, linkedin, etc.)
- *   - from: start date (ISO)
- *   - to: end date (ISO)
+ *   - from: start date for scheduled_at (ISO)
+ *   - to: end date for scheduled_at (ISO)
+ *   - created_from: start date for created_at (ISO)
+ *   - created_to: end date for created_at (ISO)
  *   - limit: max results (default 50)
  *   - offset: pagination offset
  */
@@ -62,6 +64,13 @@ export async function listPosts(request) {
   }
   if (params.get('to')) {
     query = query.lte('scheduled_at', params.get('to'));
+  }
+  // Filter by created_at (useful for analytics where scheduled_at may be NULL)
+  if (params.get('created_from')) {
+    query = query.gte('created_at', params.get('created_from'));
+  }
+  if (params.get('created_to')) {
+    query = query.lte('created_at', params.get('created_to'));
   }
 
   const limit = Math.min(parseInt(params.get('limit') || '50'), 100);

@@ -10,26 +10,32 @@ window.Posts = {
   },
   selectedPosts: new Set(),
   allPosts: [],
-  
+
+  // Helper function for translations
+  t(key, fallback) {
+    return window.PortalI18n ? PortalI18n.t(key, fallback) : fallback || key;
+  },
+
   async render(container) {
+    const t = this.t.bind(this);
     container.innerHTML = `
       <div class="space-y-6">
         <!-- Header -->
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 class="text-2xl lg:text-3xl font-bold">Posts</h1>
-            <p class="text-gray-400 mt-1">Manage your scheduled and published content</p>
+            <h1 class="text-2xl lg:text-3xl font-bold">${t('posts.title', 'Posts')}</h1>
+            <p class="text-gray-400 mt-1">${t('posts.subtitle', 'Manage your scheduled and published content')}</p>
           </div>
           <a href="#/posts/new" class="flex items-center gap-2 px-4 py-2 bg-brandBlue hover:bg-sky-600 rounded-lg transition-colors w-fit">
             <i data-lucide="plus" class="w-4 h-4"></i>
-            New Post
+            ${t('posts.newPost', 'New Post')}
           </a>
         </div>
-        
+
         <!-- Filters -->
         <div class="flex flex-wrap gap-3">
           <select id="filter-status" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent">
-            <option value="">All Statuses</option>
+            <option value="">${t('posts.allStatuses', 'All Statuses')}</option>
             <option value="ready">Ready</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
@@ -38,40 +44,40 @@ window.Posts = {
             <option value="failed">Failed</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          
+
           <select id="filter-platform" class="px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent">
-            <option value="">All Platforms</option>
+            <option value="">${t('posts.allPlatforms', 'All Platforms')}</option>
             ${PortalConfig.getEnabledPlatforms().map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
           </select>
-          
+
           <button id="refresh-posts" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors flex items-center gap-2">
             <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            Refresh
+            ${t('posts.refresh', 'Refresh')}
           </button>
         </div>
-        
+
         <!-- Bulk Actions Bar (hidden by default) -->
         <div id="bulk-actions-bar" class="hidden bg-brandBlue/20 border border-brandBlue/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-3">
-            <span id="selection-count" class="font-medium">0 selected</span>
-            <button id="clear-selection" class="text-sm text-gray-400 hover:text-white underline">Clear</button>
+            <span id="selection-count" class="font-medium">0 ${t('posts.selected', 'selected')}</span>
+            <button id="clear-selection" class="text-sm text-gray-400 hover:text-white underline">${t('posts.clear', 'Clear')}</button>
           </div>
           <div class="flex flex-wrap gap-2">
             <button id="bulk-approve" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg transition-colors flex items-center gap-2">
               <i data-lucide="check-circle" class="w-4 h-4"></i>
-              Approve
+              ${t('posts.approve', 'Approve')}
             </button>
             <button id="bulk-skip" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg transition-colors flex items-center gap-2">
               <i data-lucide="skip-forward" class="w-4 h-4"></i>
-              Skip
+              ${t('posts.skip', 'Skip')}
             </button>
             <button id="bulk-delete" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg transition-colors flex items-center gap-2">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
-              Delete
+              ${t('posts.delete', 'Delete')}
             </button>
           </div>
         </div>
-        
+
         <!-- Posts List -->
         <div id="posts-list" class="bg-slate-800/50 rounded-xl border border-slate-700">
           <div class="p-8 text-center">
@@ -119,27 +125,28 @@ window.Posts = {
   },
   
   async loadPosts() {
+    const t = this.t.bind(this);
     const listContainer = document.getElementById('posts-list');
     listContainer.innerHTML = `
       <div class="p-8 text-center">
         <div class="loading-spinner mx-auto"></div>
       </div>
     `;
-    
+
     try {
       const data = await API.listPosts(this.filters);
       const posts = data?.posts || [];
       this.allPosts = posts;
-      
+
       if (posts.length === 0) {
         listContainer.innerHTML = `
           <div class="p-12 text-center text-gray-400">
             <i data-lucide="inbox" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
-            <h3 class="text-lg font-medium mb-2">No posts found</h3>
-            <p class="text-sm mb-4">Try adjusting your filters or create a new post</p>
+            <h3 class="text-lg font-medium mb-2">${t('posts.noPostsFound', 'No posts found')}</h3>
+            <p class="text-sm mb-4">${t('posts.adjustFilters', 'Try adjusting your filters or create a new post')}</p>
             <a href="#/posts/new" class="inline-flex items-center gap-2 px-4 py-2 bg-brandBlue hover:bg-sky-600 rounded-lg transition-colors">
               <i data-lucide="plus" class="w-4 h-4"></i>
-              Create Post
+              ${t('posts.createPost', 'Create Post')}
             </a>
           </div>
         `;
@@ -147,21 +154,21 @@ window.Posts = {
         this.updateSelectionUI();
         return;
       }
-      
+
       // Get selectable posts (not posted, publishing, cancelled, or rejected)
       const selectablePosts = posts.filter(p =>
         !['posted', 'publishing', 'cancelled'].includes(p.status) &&
         p.approval_status !== 'rejected'
       );
-      
+
       listContainer.innerHTML = `
         <!-- Select All Header -->
         <div class="p-3 border-b border-slate-700 bg-slate-800/80 flex items-center gap-3">
-          <input type="checkbox" id="select-all-posts" 
+          <input type="checkbox" id="select-all-posts"
             class="w-5 h-5 rounded border-slate-500 bg-slate-700 text-brandBlue focus:ring-brandBlue cursor-pointer"
             ${selectablePosts.length > 0 && selectablePosts.every(p => this.selectedPosts.has(p.post_id)) ? 'checked' : ''}>
           <label for="select-all-posts" class="text-sm text-gray-400 cursor-pointer">
-            Select all (${selectablePosts.length} selectable)
+            ${t('posts.selectAll', 'Select all')} (${selectablePosts.length} ${t('posts.selectable', 'selectable')})
           </label>
         </div>
         <div class="divide-y divide-slate-700">
@@ -209,15 +216,16 @@ window.Posts = {
       listContainer.innerHTML = `
         <div class="p-8 text-center text-red-400">
           <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-3"></i>
-          <p>Failed to load posts: ${error.message}</p>
-          <button onclick="Posts.loadPosts()" class="mt-4 text-brandBlue hover:underline">Try again</button>
+          <p>${t('posts.failedLoad', 'Failed to load posts')}: ${error.message}</p>
+          <button onclick="Posts.loadPosts()" class="mt-4 text-brandBlue hover:underline">${t('posts.tryAgain', 'Try again')}</button>
         </div>
       `;
       lucide.createIcons();
     }
   },
-  
+
   renderPostRow(post) {
+    const t = this.t.bind(this);
     const scheduledDate = post.scheduled_at ? new Date(post.scheduled_at) : null;
     const isPast = scheduledDate && scheduledDate < new Date();
     const canEdit = !['posted', 'publishing', 'cancelled'].includes(post.status);
@@ -267,20 +275,32 @@ window.Posts = {
             <div class="flex items-center gap-2 mb-1">
               ${UI.platformIcon(post.platform)}
               <a href="#/posts/${post.post_id}" class="font-medium hover:text-brandBlue transition-colors">
-                ${post.subject || 'Untitled Post'}
+                ${post.subject || t('posts.untitled', 'Untitled Post')}
               </a>
               ${post.post_type === 'carousel' ? `<span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="layers" class="w-3 h-3"></i>${post.media_urls?.length || 0} slides</span>` : ''}
               ${post.post_type === 'video' ? '<span class="text-xs bg-pink-500/20 text-pink-400 px-2 py-0.5 rounded flex items-center gap-1"><i data-lucide="video" class="w-3 h-3"></i>Video</span>' : ''}
             </div>
             <p class="text-sm text-gray-400 line-clamp-2 mb-2">${UI.truncate(post.caption, 120)}</p>
             <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-              <span class="flex items-center gap-1">
-                <i data-lucide="calendar" class="w-3 h-3"></i>
-                ${scheduledDate ? UI.formatDate(post.scheduled_at) : 'Not scheduled'}
-              </span>
-              ${scheduledDate ? `
+              ${post.status === 'posted' && post.posted_at ? `
+                <span class="flex items-center gap-1">
+                  <i data-lucide="check-circle" class="w-3 h-3 text-green-400"></i>
+                  ${UI.formatDate(post.posted_at)}
+                </span>
+                <span class="text-gray-500">${UI.formatRelativeTime(post.posted_at)}</span>
+              ` : scheduledDate ? `
+                <span class="flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3 h-3"></i>
+                  ${UI.formatDate(post.scheduled_at)}
+                </span>
                 <span class="${isPast ? 'text-gray-500' : 'text-brandBlue'}">${UI.formatRelativeTime(post.scheduled_at)}</span>
-              ` : ''}
+              ` : `
+                <span class="flex items-center gap-1">
+                  <i data-lucide="calendar" class="w-3 h-3"></i>
+                  ${UI.formatDate(post.created_at, false)}
+                </span>
+                <span class="text-gray-500">${t('posts.notScheduled', 'Not scheduled')}</span>
+              `}
             </div>
           </div>
           
@@ -308,33 +328,35 @@ window.Posts = {
   },
   
   async deletePost(postId) {
+    const t = this.t.bind(this);
     const confirmed = await UI.confirm(
-      'Are you sure you want to delete this post? This action cannot be undone.',
-      'Delete Post'
+      t('posts.deleteConfirm', 'Are you sure you want to delete this post? This action cannot be undone.'),
+      t('posts.deleteTitle', 'Delete Post')
     );
-    
+
     if (!confirmed) return;
-    
+
     try {
       await API.deletePost(postId);
-      UI.toast('Post deleted', 'success');
+      UI.toast(t('posts.deleted', 'Post deleted'), 'success');
       this.selectedPosts.delete(postId);
       this.loadPosts();
     } catch (error) {
-      UI.toast('Failed to delete post: ' + error.message, 'error');
+      UI.toast(t('posts.failedLoad', 'Failed to delete post') + ': ' + error.message, 'error');
     }
   },
-  
+
   updateSelectionUI() {
+    const t = this.t.bind(this);
     const bulkBar = document.getElementById('bulk-actions-bar');
     const countSpan = document.getElementById('selection-count');
     const selectAllCb = document.getElementById('select-all-posts');
-    
+
     const count = this.selectedPosts.size;
-    
+
     if (count > 0) {
       bulkBar?.classList.remove('hidden');
-      if (countSpan) countSpan.textContent = `${count} selected`;
+      if (countSpan) countSpan.textContent = `${count} ${t('posts.selected', 'selected')}`;
     } else {
       bulkBar?.classList.add('hidden');
     }

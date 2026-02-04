@@ -20,7 +20,8 @@ window.Router = {
     'batches/new': { title: 'Create Batch', handler: 'BatchForm' },
     'batches/:id': { title: 'Batch Details', handler: 'BatchForm' },
     'media': { title: 'Media Library', handler: 'Media' },
-    'schedule': { title: 'Settings', handler: 'Schedule' }
+    'settings': { title: 'Settings', handler: 'Settings' },
+    'schedule': { title: 'Schedule', handler: 'Settings' }  // Alias for settings
   },
   
   /**
@@ -55,7 +56,13 @@ window.Router = {
    */
   handleRoute() {
     const hash = window.location.hash.slice(2) || 'dashboard'; // Remove #/
-    
+
+    // Legacy redirect: #/posts/pending → #/approvals?type=posts
+    if (hash === 'posts/pending') {
+      window.location.hash = '#/approvals?type=posts';
+      return;
+    }
+
     // Find matching route
     let route = this.routes[hash];
     let params = {};
@@ -90,18 +97,31 @@ window.Router = {
     }
     
     if (!route) {
-      // Default to dashboard
-      route = this.routes['dashboard'];
+      // Default to dashboard (or admin landing for admins)
+      const isAdminNoClient = typeof Auth !== 'undefined' && Auth.user?.role === 'admin' && !Auth.user?.client_id;
+      route = isAdminNoClient ? null : this.routes['dashboard'];
     }
-    
+
+    // Guard: admin users without client_id cannot access client-dependent pages
+    const isAdminNoClient = typeof Auth !== 'undefined' && Auth.user?.role === 'admin' && !Auth.user?.client_id;
+    if (isAdminNoClient && route) {
+      this.renderAdminLanding(document.getElementById('page-content'));
+      return;
+    }
+
     this.currentPage = hash;
     this.updateActiveNav(hash);
-    
+
     // Clear unsaved changes flag when navigating
     if (typeof UI !== 'undefined' && UI.setUnsavedChanges) {
       UI.setUnsavedChanges(false);
     }
-    
+
+    if (!route) {
+      this.renderAdminLanding(document.getElementById('page-content'));
+      return;
+    }
+
     this.renderPage(route, params);
   },
   
@@ -111,7 +131,9 @@ window.Router = {
   updateActiveNav(hash) {
     document.querySelectorAll('.nav-link').forEach(link => {
       const linkPage = link.dataset.page;
-      if (linkPage === hash || hash.startsWith(linkPage + '/')) {
+      // Handle schedule -> settings alias
+      const normalizedHash = hash === 'schedule' ? 'settings' : hash;
+      if (linkPage === normalizedHash || normalizedHash.startsWith(linkPage + '/')) {
         link.classList.add('bg-brandBlue/20', 'text-brandBlue');
       } else {
         link.classList.remove('bg-brandBlue/20', 'text-brandBlue');
@@ -160,5 +182,33 @@ window.Router = {
         </div>
       `;
     }
+  },
+
+  /**
+   * Render admin landing page (for admins without a client_id)
+   */
+  renderAdminLanding(container) {
+    const t = typeof PortalI18n !== 'undefined' ? (k, fb) => PortalI18n.t(k, fb) : (k, fb) => fb;
+    document.title = 'Admin | TechBuddy4Biz Portal';
+
+    container.innerHTML = `
+      <div class="max-w-2xl mx-auto py-16 text-center">
+        <div class="bg-slate-800/50 rounded-xl p-8 border border-slate-700">
+          <div class="w-16 h-16 bg-brandOrange/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield" class="w-8 h-8 text-brandOrange"></i>
+          </div>
+          <h1 class="text-2xl font-bold mb-3">${t('admin.welcome', 'Admin Panel')}</h1>
+          <p class="text-gray-400 mb-6">
+            ${t('admin.noClientMsg', 'Your account is not linked to a specific client. Use the Admin Config panel to manage clients and their settings.')}
+          </p>
+          <a href="/admin/config.html"
+            class="inline-flex items-center gap-2 px-6 py-3 bg-brandOrange hover:bg-orange-600 rounded-lg font-medium transition-colors">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            ${t('nav.adminConfig', 'Admin Config')}
+          </a>
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
   }
 };

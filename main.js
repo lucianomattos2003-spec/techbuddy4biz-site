@@ -7,6 +7,7 @@ const translations = {
     'nav.faq': 'FAQ',
     'nav.contact': 'Contact',
     'nav.auditButton': 'Free audit',
+    'nav.clientLogin': 'Client Login',
     'nav.backHome': '← Back to Home',
 
     'hero.badge': 'Built for owner-led businesses · 3–50 people',
@@ -238,6 +239,7 @@ const translations = {
     'nav.contact': 'Contato',
     'nav.backHome': '← Voltar ao início',
     'nav.auditButton': 'Auditoria grátis',
+    'nav.clientLogin': 'Acesso Cliente',
 
     'hero.badge': 'Feito para empresas lideradas pelo dono · 3–50 pessoas',
     'hero.headingMain': 'Transforme o caos de ligações, e-mails e DMs em',
@@ -468,6 +470,7 @@ const translations = {
     'nav.contact': 'Contacto',
     'nav.backHome': '← Volver al inicio',
     'nav.auditButton': 'Auditoría gratis',
+    'nav.clientLogin': 'Acceso Cliente',
 
     'hero.badge': 'Pensado para negocios dirigidos por sus dueños · 3–50 personas',
     'hero.headingMain': 'Convierte el caos de llamadas, correos y mensajes en',

@@ -31,14 +31,17 @@ function extractToken(request) {
  * Body: { email: string, password: string }
  */
 export async function login(request) {
+  console.log('[AUTH] Login attempt started');
   const body = await parseBody(request);
-  
+
   if (!body?.email || !body?.password) {
+    console.log('[AUTH] Login failed: missing email or password');
     return error('Email and password are required', 400);
   }
 
   const email = body.email.toLowerCase().trim();
   const password = body.password;
+  console.log('[AUTH] Login attempt for email:', email);
 
   const db = getAdminClient();
 
@@ -50,23 +53,29 @@ export async function login(request) {
     .single();
 
   if (userError || !user) {
+    console.log('[AUTH] Login failed: user not found or DB error:', userError?.message);
     // Don't reveal if user exists
     return error('Invalid email or password', 401);
   }
 
+  console.log('[AUTH] User found:', { user_id: user.user_id, email: user.email, role: user.role, is_active: user.is_active });
+
   // Check if account is locked
   if (user.locked_until && new Date(user.locked_until) > new Date()) {
+    console.log('[AUTH] Login failed: account locked until', user.locked_until);
     const minutesLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
     return error(`Account locked. Try again in ${minutesLeft} minutes.`, 423);
   }
 
   // Check if account is active
   if (!user.is_active) {
+    console.log('[AUTH] Login failed: account is not active');
     return error('Account is disabled. Please contact support.', 403);
   }
 
   // Check if password is set
   if (!user.password_hash) {
+    console.log('[AUTH] Login failed: password not set');
     return error('Password not set. Please use password reset.', 401);
   }
 
@@ -611,8 +620,120 @@ export async function resetPassword(request) {
     await db.from('user_sessions').delete().eq('user_id', user.user_id);
   }
 
-  return json({ 
-    success: true, 
-    message: 'Password updated successfully. Please login with your new password.' 
+  return json({
+    success: true,
+    message: 'Password updated successfully. Please login with your new password.'
+  });
+}
+
+/**
+ * Set password for new onboarding user (OTP verification)
+ * POST /api/auth/set-password
+ * Body: { email: string, otp: string, password: string }
+ */
+export async function setPassword(request) {
+  const body = await parseBody(request);
+
+  if (!body?.email || !body?.otp || !body?.password) {
+    return error('Email, OTP code, and password are required', 400);
+  }
+
+  const email = body.email.toLowerCase().trim();
+  const otp = body.otp.trim();
+  const password = body.password;
+
+  console.log('setPassword called with:', { email, otp: `${otp} (len=${otp.length})` });
+
+  // Validate OTP format (6 digits)
+  if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+    console.log('OTP format validation failed:', { otp, length: otp.length, isDigits: /^\d+$/.test(otp) });
+    return error('Invalid OTP format', 400);
+  }
+
+  // Validate password strength
+  if (password.length < 6) {
+    return error('Password must be at least 6 characters', 400);
+  }
+
+  const db = getAdminClient();
+
+  // Hash password before sending to DB function
+  const passwordHash = await hashPassword(password);
+
+  // Call verify_otp_and_set_password DB function
+  console.log('Calling verify_otp_and_set_password with:', { p_email: email, p_otp: otp });
+
+  const { data, error: rpcError } = await db.rpc('verify_otp_and_set_password', {
+    p_email: email,
+    p_otp: otp,
+    p_password_hash: passwordHash
+  });
+
+  console.log('verify_otp_and_set_password result:', { data, rpcError });
+
+  if (rpcError) {
+    console.error('Set password RPC error:', rpcError);
+    return error('Failed to set password', 500);
+  }
+
+  if (!data || data.length === 0 || !data[0].success) {
+    const message = data?.[0]?.message || 'Invalid or expired OTP';
+    console.log('OTP verification failed:', { data, message });
+    return error(message, 400);
+  }
+
+  const result = data[0];
+
+  // Get user details for token generation
+  const { data: user } = await db
+    .from('portal_users')
+    .select('user_id, email, client_id, role')
+    .eq('user_id', result.user_id)
+    .single();
+
+  if (!user) {
+    return error('User not found', 404);
+  }
+
+  // Get client info
+  const { data: client } = await db
+    .from('clients')
+    .select('name, timezone')
+    .eq('client_id', result.client_id)
+    .single();
+
+  // Generate tokens for auto-login
+  const accessToken = generateAccessToken({
+    user_id: user.user_id,
+    email: user.email,
+    client_id: user.client_id,
+    role: user.role
+  });
+
+  const refreshToken = generateRefreshToken();
+  const { refreshTokenExpiry } = getTokenExpiry();
+
+  // Store refresh token
+  await db.from('user_sessions').insert({
+    user_id: user.user_id,
+    refresh_token: refreshToken,
+    expires_at: refreshTokenExpiry.toISOString(),
+    ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+    user_agent: request.headers.get('user-agent') || 'unknown'
+  });
+
+  return json({
+    success: true,
+    message: 'Password set successfully',
+    accessToken,
+    refreshToken,
+    expiresIn: 3600,
+    user: {
+      user_id: user.user_id,
+      email: user.email,
+      role: user.role,
+      client_id: user.client_id,
+      client_name: client?.name || null
+    }
   });
 }

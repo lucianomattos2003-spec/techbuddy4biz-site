@@ -70,8 +70,35 @@ export async function getEnabledPlatforms(request) {
   const authResult = await requireAuth(request);
   if (authResult instanceof Response) return authResult;
 
-  const { client_id } = authResult;
+  const { client_id, isAdmin } = authResult;
   const db = getAdminClient();
+
+  // Admin users without client_id get all available platforms
+  if (isAdmin && !client_id) {
+    // Return all unique platforms from social_schedules
+    const { data: allSchedules, error: dbError } = await db
+      .from('social_schedules')
+      .select('platform')
+      .eq('is_active', true);
+
+    if (dbError) {
+      console.error('Get enabled platforms error:', dbError);
+      return error('Failed to fetch enabled platforms', 500);
+    }
+
+    // Get unique platforms
+    const uniquePlatforms = [...new Set((allSchedules || []).map(s => s.platform))];
+
+    return json({
+      enabled_platforms: uniquePlatforms,
+      platform_configs: uniquePlatforms.map(p => ({
+        platform: p,
+        approval_mode: 'auto',
+        auto_approve_manual_posts: true
+      })),
+      is_admin: true
+    });
+  }
 
   // ✅ ARCHITECTURE COMPLIANCE:
   // Query social_schedules to determine which platforms are enabled

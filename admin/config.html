@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TBB Admin Console - Configuration</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <link rel="icon" href="/assets/logo.png" type="image/png">
+
+  <!-- TailwindCSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brandBlue: '#0ea5e9',
+            brandOrange: '#fb923c',
+            brandBg: '#020617',
+            brandTeal: '#00d4aa'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Monaco Editor for JSON/Prompts -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    .loading-spinner {
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #0ea5e9;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .toast {
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .tab-btn.active {
+      background-color: rgba(14, 165, 233, 0.1);
+      border-left: 3px solid #0ea5e9;
+      color: #0ea5e9;
+    }
+    .tab-btn:hover:not(.active) {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-green { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .badge-yellow { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+    .badge-blue { background: rgba(14, 165, 233, 0.2); color: #0ea5e9; }
+    .badge-gray { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
+    .card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+    }
+    .form-input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 0.5rem;
+      color: white;
+      font-size: 0.875rem;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+    }
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 0.375rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: #0ea5e9;
+      color: white;
+    }
+    .btn-primary:hover { background: #0284c7; }
+    .btn-secondary {
+      background: rgba(71, 85, 105, 0.5);
+      color: #e2e8f0;
+      border: 1px solid rgba(71, 85, 105, 0.5);
+    }
+    .btn-secondary:hover { background: rgba(71, 85, 105, 0.7); }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.3); }
+    .toggle-checkbox:checked {
+      background-color: #0ea5e9;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #0ea5e9;
+    }
+    .collapsible-header {
+      cursor: pointer;
+      user-select: none;
+    }
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .collapsible-content.open {
+      max-height: 2000px;
+    }
+    /* Monaco Editor Container */
+    .monaco-container {
+      height: 300px;
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    /* Table styles */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 0.75rem;
+      background: rgba(15, 23, 42, 0.8);
+      border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .data-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+      font-size: 0.875rem;
+    }
+    .data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+  </style>
+</head>
+<body class="bg-brandBg text-white min-h-screen">
+  <!-- App Container -->
+  <div id="app">
+    <!-- Loading State -->
+    <div id="loading-screen" class="fixed inset-0 bg-brandBg flex items-center justify-center z-50">
+      <div class="text-center">
+        <div class="loading-spinner mx-auto mb-4"></div>
+        <p class="text-gray-400" data-i18n="loading.console">Loading Admin Console...</p>
+      </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div id="main-content" class="hidden min-h-screen">
+      <!-- Header -->
+      <header class="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-4">
+              <img src="/assets/logo.png" alt="TBB" class="h-8">
+              <h1 class="text-lg font-semibold" data-i18n="header.title">Admin Console</h1>
+              <span class="badge badge-blue" data-i18n="header.configuration">Configuration</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <!-- Language Selector -->
+              <select id="admin-lang-select" class="form-input py-1 px-2 text-xs w-28">
+                <option value="en">English</option>
+                <option value="pt">Português (BR)</option>
+                <option value="es">Español</option>
+              </select>
+              <span id="admin-user" class="text-sm text-gray-400"></span>
+              <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300" data-i18n="header.logout">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Client Selector -->
+      <div class="bg-slate-800/50 border-b border-slate-700 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center gap-4">
+            <label class="text-sm font-medium text-gray-300" data-i18n="client.label">Client:</label>
+            <select id="client-selector" onchange="onClientChange()" class="form-input max-w-md">
+              <option value="" data-i18n="client.select">Select a client...</option>
+            </select>
+            <div id="client-status" class="flex items-center gap-2 hidden">
+              <span id="client-status-badge" class="badge"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex gap-6">
+          <!-- Sidebar Tabs -->
+          <nav class="w-48 flex-shrink-0">
+            <div class="space-y-1">
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300 active" data-tab="overview">
+                <i data-lucide="layout-dashboard" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.overview">Overview</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="schedule">
+                <i data-lucide="calendar" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.schedule">Schedule</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="themes">
+                <i data-lucide="palette" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.themes">Themes</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="prompts">
+                <i data-lucide="message-square" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.prompts">Prompts</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="rules">
+                <i data-lucide="sliders" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.rules">Rules</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="branding">
+                <i data-lucide="brush" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.branding">Branding</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="hashtags">
+                <i data-lucide="hash" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.hashtags">Hashtags</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="system">
+                <i data-lucide="settings" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.system">System</span>
+              </button>
+              <button class="tab-btn w-full text-left px-4 py-2.5 rounded-r text-sm font-medium text-gray-300" data-tab="audit">
+                <i data-lucide="scroll-text" class="inline w-4 h-4 mr-2"></i>
+                <span data-i18n="tab.auditLog">Audit Log</span>
+              </button>
+            </div>
+          </nav>
+
+          <!-- Tab Content -->
+          <div class="flex-1 min-w-0">
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="tab-content">
+              <div id="overview-placeholder" class="card text-center py-12">
+                <i data-lucide="building-2" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400" data-i18n="client.selectToView">Select a client to view their configuration</p>
+              </div>
+              <div id="overview-content" class="hidden space-y-6">
+                <!-- Client Info -->
+                <div class="card">
+                  <h3 class="text-lg font-semibold mb-4" data-i18n="overview.clientInfo">Client Information</h3>
+                  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span class="text-gray-400">Client ID:</span>
+                      <div id="info-client-id" class="font-mono text-xs mt-1 cursor-pointer hover:text-brandBlue" onclick="copyToClipboard(this.textContent)"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Client Key:</span>
+                      <div id="info-client-key" class="font-mono text-xs mt-1"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Business Name:</span>
+                      <div id="info-business-name" class="mt-1 font-medium"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Status:</span>
+                      <div id="info-status" class="mt-1"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Industry:</span>
+                      <div id="info-industry" class="mt-1"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Timezone:</span>
+                      <div id="info-timezone" class="mt-1"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Created:</span>
+                      <div id="info-created" class="mt-1"></div>
+                    </div>
+                    <div>
+                      <span class="text-gray-400">Onboarding:</span>
+                      <div id="info-onboarding" class="mt-1"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card">
+                  <h3 class="text-lg font-semibold mb-4" data-i18n="overview.quickStats">Quick Stats</h3>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <div id="stat-themes" class="text-2xl font-bold text-brandBlue">-</div>
+                      <div class="text-xs text-gray-400 mt-1">Themes</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <div id="stat-prompts" class="text-2xl font-bold text-brandTeal">-</div>
+                      <div class="text-xs text-gray-400 mt-1">Prompts</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <div id="stat-pending" class="text-2xl font-bold text-brandOrange">-</div>
+                      <div class="text-xs text-gray-400 mt-1">Pending Posts</div>
+                    </div>
+                    <div class="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <div id="stat-failed" class="text-2xl font-bold text-red-400">-</div>
+                      <div class="text-xs text-gray-400 mt-1">Failed Tasks</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                  <h3 class="text-lg font-semibold mb-4" data-i18n="overview.quickActions">Quick Actions</h3>
+                  <div class="flex flex-wrap gap-3">
+                    <button onclick="resetFailedTasks()" class="btn btn-secondary">
+                      <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                      Reset Failed Tasks
+                    </button>
+                    <button onclick="resendWelcomeEmail()" class="btn btn-secondary">
+                      <i data-lucide="mail" class="w-4 h-4 mr-2"></i>
+                      Resend Welcome Email
+                    </button>
+                    <button onclick="confirmDeleteClient()" class="btn btn-danger">
+                      <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i>
+                      Delete Client...
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div id="tab-schedule" class="tab-content hidden">
+              <div id="schedule-placeholder" class="card text-center py-12">
+                <i data-lucide="calendar" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400" data-i18n="schedule.selectClient">Select a client to manage schedules</p>
+              </div>
+              <div id="schedule-content" class="hidden space-y-6">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-xl font-semibold" data-i18n="schedule.title">Schedule Settings</h2>
+                  <button onclick="openAddScheduleModal()" class="btn btn-primary">
+                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                    <span data-i18n="schedule.addPlatform">Add Platform</span>
+                  </button>
+                </div>
+
+                <div id="schedules-list" class="space-y-4">
+                  <!-- Schedules will be loaded here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Themes Tab -->
+            <div id="tab-themes" class="tab-content hidden">
+              <div id="themes-placeholder" class="card text-center py-12">
+                <i data-lucide="palette" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400" data-i18n="themes.selectClient">Select a client to manage themes</p>
+              </div>
+              <div id="themes-content" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-xl font-semibold" data-i18n="themes.title">Content Themes</h2>
+                  <div class="flex items-center gap-3">
+                    <select id="themes-filter" onchange="filterThemes()" class="form-input w-40">
+                      <option value="all">All Themes</option>
+                      <option value="active">Active Only</option>
+                      <option value="inactive">Inactive Only</option>
+                    </select>
+                    <button onclick="openAddThemeModal()" class="btn btn-primary">
+                      <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                      Add Theme
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card overflow-hidden p-0">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th class="w-8"><input type="checkbox" id="themes-select-all" onchange="toggleAllThemes()"></th>
+                        <th>Theme</th>
+                        <th>Category</th>
+                        <th class="text-center">Used</th>
+                        <th class="text-center">Priority</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="themes-table-body">
+                      <!-- Themes will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <button onclick="bulkEnableThemes()" class="btn btn-secondary text-sm">Enable Selected</button>
+                  <button onclick="bulkDisableThemes()" class="btn btn-secondary text-sm">Disable Selected</button>
+                  <button onclick="bulkResetUsage()" class="btn btn-secondary text-sm">Reset Usage</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Prompts Tab -->
+            <div id="tab-prompts" class="tab-content hidden">
+              <div id="prompts-placeholder" class="card text-center py-12">
+                <i data-lucide="message-square" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400">Select a client to manage prompts</p>
+              </div>
+              <div id="prompts-content" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-xl font-semibold">AI Prompts</h2>
+                    <p class="text-sm text-yellow-400 mt-1">
+                      <i data-lucide="alert-triangle" class="inline w-4 h-4 mr-1"></i>
+                      Warning: Editing prompts affects AI content generation quality.
+                    </p>
+                  </div>
+                  <button onclick="openAddPromptModal()" class="btn btn-primary">
+                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                    Add Prompt
+                  </button>
+                </div>
+
+                <div class="card overflow-hidden p-0">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Platform</th>
+                        <th class="text-center">Length</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="prompts-table-body">
+                      <!-- Prompts will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rules Tab -->
+            <div id="tab-rules" class="tab-content hidden">
+              <div id="rules-placeholder" class="card text-center py-12">
+                <i data-lucide="sliders" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400">Select a client to manage rules</p>
+              </div>
+              <div id="rules-content" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-xl font-semibold">Client Rules</h2>
+                    <p class="text-sm text-yellow-400 mt-1">
+                      <i data-lucide="alert-triangle" class="inline w-4 h-4 mr-1"></i>
+                      Advanced: Changes here affect core system behavior.
+                    </p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="validateRulesJson()" class="btn btn-secondary">Validate JSON</button>
+                    <button onclick="saveRules()" class="btn btn-primary">Save Rules</button>
+                  </div>
+                </div>
+
+                <!-- Collapsible Sections -->
+                <div id="rules-sections" class="space-y-3">
+                  <!-- AI Settings -->
+                  <div class="card">
+                    <div class="collapsible-header flex items-center justify-between" onclick="toggleCollapsible(this)">
+                      <h3 class="font-semibold flex items-center gap-2">
+                        <i data-lucide="cpu" class="w-5 h-5 text-brandBlue"></i>
+                        AI Settings
+                      </h3>
+                      <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transition-transform"></i>
+                    </div>
+                    <div class="collapsible-content mt-4">
+                      <div class="grid grid-cols-3 gap-4">
+                        <div>
+                          <label class="form-label">Model</label>
+                          <select id="rules-ai-model" class="form-input">
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                            <option value="gpt-4-turbo">gpt-4-turbo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="form-label">Temperature</label>
+                          <input type="number" id="rules-ai-temp" class="form-input" min="0" max="2" step="0.1" value="0.7">
+                        </div>
+                        <div>
+                          <label class="form-label">Max Tokens</label>
+                          <input type="number" id="rules-ai-tokens" class="form-input" min="100" max="8000" value="1000">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Limits -->
+                  <div class="card">
+                    <div class="collapsible-header flex items-center justify-between" onclick="toggleCollapsible(this)">
+                      <h3 class="font-semibold flex items-center gap-2">
+                        <i data-lucide="gauge" class="w-5 h-5 text-brandOrange"></i>
+                        Limits
+                      </h3>
+                      <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transition-transform"></i>
+                    </div>
+                    <div class="collapsible-content mt-4">
+                      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <label class="form-label">Max Tasks Per Run</label>
+                          <input type="number" id="rules-max-tasks" class="form-input" value="25">
+                        </div>
+                        <div>
+                          <label class="form-label">Task Dedupe (sec)</label>
+                          <input type="number" id="rules-dedupe" class="form-input" value="86400">
+                        </div>
+                        <div>
+                          <label class="form-label">Followup Cooldown (sec)</label>
+                          <input type="number" id="rules-followup-cooldown" class="form-input" value="86400">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Raw JSON Editor -->
+                  <div class="card">
+                    <div class="collapsible-header flex items-center justify-between" onclick="toggleCollapsible(this)">
+                      <h3 class="font-semibold flex items-center gap-2">
+                        <i data-lucide="code" class="w-5 h-5 text-brandTeal"></i>
+                        Raw JSON Editor
+                      </h3>
+                      <i data-lucide="chevron-down" class="w-5 h-5 text-gray-400 transition-transform"></i>
+                    </div>
+                    <div class="collapsible-content mt-4">
+                      <p class="text-sm text-yellow-400 mb-3">Edit with caution. Invalid JSON will be rejected.</p>
+                      <div id="rules-editor" class="monaco-container"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Branding Tab -->
+            <div id="tab-branding" class="tab-content hidden">
+              <div id="branding-placeholder" class="card text-center py-12">
+                <i data-lucide="brush" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400" data-i18n="branding.selectClient">Select a client to manage branding</p>
+              </div>
+              <div id="branding-content" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-xl font-semibold" data-i18n="branding.title">Branding Settings</h2>
+                  <button onclick="saveBranding()" class="btn btn-primary" data-i18n="branding.saveBranding">Save Branding</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                  <!-- Logo -->
+                  <div class="card">
+                    <h3 class="font-semibold mb-4">Logo</h3>
+                    <div class="flex items-start gap-4">
+                      <div id="logo-preview" class="w-24 h-24 bg-slate-900 rounded-lg flex items-center justify-center border border-slate-600 overflow-hidden">
+                        <i data-lucide="image" class="w-8 h-8 text-gray-500"></i>
+                      </div>
+                      <div class="space-y-3 flex-1">
+                        <div>
+                          <label class="form-label">Upload Logo</label>
+                          <input type="file" id="branding-logo-file" accept="image/png,image/jpeg,image/gif,image/webp"
+                            class="form-input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-brandBlue file:text-white file:cursor-pointer"
+                            onchange="handleLogoFileSelect(event)">
+                          <p class="text-xs text-gray-400 mt-1">PNG, JPG, GIF or WebP. Max 2MB. Recommended: 512x512</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button type="button" onclick="removeLogo()" class="btn btn-danger text-xs py-1 px-2">
+                            <i data-lucide="trash-2" class="w-3 h-3 mr-1"></i>Remove
+                          </button>
+                        </div>
+                        <!-- Hidden fields to store logo data -->
+                        <input type="hidden" id="branding-logo-base64" value="">
+                        <input type="hidden" id="branding-logo-mime-type" value="">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Colors -->
+                  <div class="card">
+                    <h3 class="font-semibold mb-4">Colors</h3>
+                    <div class="space-y-3">
+                      <div class="flex items-center gap-3">
+                        <label class="form-label w-32">Primary:</label>
+                        <input type="color" id="branding-primary-color" value="#0ea5e9" class="w-10 h-10 rounded cursor-pointer">
+                        <input type="text" id="branding-primary-hex" class="form-input w-28" value="#0ea5e9" pattern="^#[0-9A-Fa-f]{6}$">
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <label class="form-label w-32">Secondary:</label>
+                        <input type="color" id="branding-secondary-color" value="#fb923c" class="w-10 h-10 rounded cursor-pointer">
+                        <input type="text" id="branding-secondary-hex" class="form-input w-28" value="#fb923c" pattern="^#[0-9A-Fa-f]{6}$">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Company Info -->
+                <div class="card">
+                  <h3 class="font-semibold mb-4">Company Info</h3>
+                  <div class="space-y-4">
+                    <div>
+                      <label class="form-label">Tagline</label>
+                      <input type="text" id="branding-tagline" class="form-input" placeholder="Connect. Automate. Grow.">
+                    </div>
+                    <div>
+                      <label class="form-label">Email Footer HTML</label>
+                      <textarea id="branding-footer" class="form-input h-24" placeholder="<p>Best regards,<br>The Team</p>"></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hashtags Tab -->
+            <div id="tab-hashtags" class="tab-content hidden">
+              <div id="hashtags-placeholder" class="card text-center py-12">
+                <i data-lucide="hash" class="w-12 h-12 mx-auto mb-4 text-gray-500"></i>
+                <p class="text-gray-400">Select a client to manage hashtags</p>
+              </div>
+              <div id="hashtags-content" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                  <h2 class="text-xl font-semibold">Hashtag Packs</h2>
+                  <button onclick="openAddHashtagModal()" class="btn btn-primary">
+                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                    Add Pack
+                  </button>
+                </div>
+
+                <div class="card overflow-hidden p-0">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Pack</th>
+                        <th>Category</th>
+                        <th>Platform</th>
+                        <th class="text-center">Hashtags</th>
+                        <th class="text-center">Active</th>
+                        <th class="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="hashtags-table-body">
+                      <!-- Hashtags will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- System Tab -->
+            <div id="tab-system" class="tab-content hidden">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-xl font-semibold" data-i18n="system.title">System Settings</h2>
+                    <p class="text-sm text-yellow-400 mt-1">
+                      <i data-lucide="alert-triangle" class="inline w-4 h-4 mr-1"></i>
+                      <span data-i18n="system.warning">Changes affect ALL clients</span>
+                    </p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="openAddConfigModal()" class="btn btn-secondary">
+                      <i data-lucide="plus" class="w-4 h-4 mr-2"></i>Add Config
+                    </button>
+                    <button onclick="loadSystemConfig()" class="btn btn-secondary">
+                      <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <!-- System Config Entries (loaded dynamically) -->
+                <div id="system-config-container" class="space-y-4">
+                  <div class="card text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-400">Loading system configuration...</p>
+                  </div>
+                </div>
+
+                <!-- Platform Limits -->
+                <div class="card">
+                  <h3 class="font-semibold mb-4">Platform Limits</h3>
+                  <div class="flex items-center gap-4 mb-4">
+                    <label class="text-sm">Platform:</label>
+                    <select id="system-platform-select" onchange="loadPlatformConfig()" class="form-input w-48">
+                      <option value="instagram">Instagram</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="facebook">Facebook</option>
+                    </select>
+                  </div>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label class="form-label">Max Caption Length</label>
+                      <input type="number" id="platform-max-caption" class="form-input" value="2200">
+                    </div>
+                    <div>
+                      <label class="form-label">Max Hashtags</label>
+                      <input type="number" id="platform-max-hashtags" class="form-input" value="30">
+                    </div>
+                    <div>
+                      <label class="form-label">Max Carousel Slides</label>
+                      <input type="number" id="platform-max-slides" class="form-input" value="10">
+                    </div>
+                    <div>
+                      <label class="form-label">Optimal Hashtag Count</label>
+                      <input type="number" id="platform-optimal-hashtags" class="form-input" value="8">
+                    </div>
+                  </div>
+                  <div class="mt-4 flex justify-end">
+                    <button onclick="savePlatformConfig()" class="btn btn-primary">Save Platform Config</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Audit Log Tab -->
+            <div id="tab-audit" class="tab-content hidden">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h2 class="text-xl font-semibold" data-i18n="audit.title">Audit Log</h2>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="audit.subtitle">Track all admin actions and configuration changes</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button onclick="loadAuditLog()" class="btn btn-secondary">
+                      <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="card">
+                  <div class="flex flex-wrap items-end gap-4">
+                    <div>
+                      <label class="form-label">Client</label>
+                      <select id="audit-filter-client" class="form-input w-48" onchange="loadAuditLog()">
+                        <option value="">All Clients</option>
+                        <!-- Options populated dynamically -->
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label">Action Type</label>
+                      <select id="audit-filter-action" class="form-input w-48" onchange="loadAuditLog()">
+                        <option value="">All Actions</option>
+                        <option value="create">Create</option>
+                        <option value="update">Update</option>
+                        <option value="delete">Delete</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label">Entity Type</label>
+                      <select id="audit-filter-entity" class="form-input w-48" onchange="loadAuditLog()">
+                        <option value="">All Entities</option>
+                        <option value="client_branding">Branding</option>
+                        <option value="social_schedules">Schedules</option>
+                        <option value="social_themes">Themes</option>
+                        <option value="social_prompts">Prompts</option>
+                        <option value="client_rules">Rules</option>
+                        <option value="social_hashtag_packs">Hashtags</option>
+                        <option value="system_config">System Config</option>
+                        <option value="social_platform_config">Platform Config</option>
+                        <option value="task_queue">Task Queue</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label">Date Range</label>
+                      <select id="audit-filter-date" class="form-input w-40" onchange="loadAuditLog()">
+                        <option value="7">Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="">All time</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Audit Log Table -->
+                <div class="card overflow-hidden p-0">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Timestamp</th>
+                        <th>Actor</th>
+                        <th>Action</th>
+                        <th>Entity</th>
+                        <th>Client</th>
+                        <th class="text-right">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody id="audit-log-body">
+                      <tr>
+                        <td colspan="6" class="text-center py-8 text-gray-400">
+                          <div class="loading-spinner mx-auto mb-4"></div>
+                          Loading audit log...
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex items-center justify-between">
+                  <div id="audit-pagination-info" class="text-sm text-gray-400">
+                    Showing 0 of 0 entries
+                  </div>
+                  <div class="flex gap-2">
+                    <button id="audit-prev-btn" onclick="loadAuditLog('prev')" class="btn btn-secondary text-sm" disabled>
+                      <i data-lucide="chevron-left" class="w-4 h-4"></i> Previous
+                    </button>
+                    <button id="audit-next-btn" onclick="loadAuditLog('next')" class="btn btn-secondary text-sm" disabled>
+                      Next <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Modals Container -->
+  <div id="modals-container"></div>
+
+  <!-- Scripts -->
+  <script src="/admin/js/i18n.js"></script>
+  <script src="/admin/js/config.js"></script>
+</body>
+</html>

@@ -11,10 +11,29 @@ window.PortalConfig = {
   SUPABASE_URL: 'https://saoybhrksshcjnidlfdb.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhb3liaHJrc3NoY2puaWRsZmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODU0MjYsImV4cCI6MjA4MTU2MTQyNn0.uH0Yt_FrSzKBddBH7HMp4ZyvYgpQbaEzgMIcCq1JSFk',  // Get from Supabase Dashboard > Settings > API > anon public
   
-  // Cloudinary configuration
+  // Cloudinary configuration (loaded from system_config on init)
+  // Defaults used if API call fails
   CLOUDINARY_CLOUD_NAME: 'dfqbqbhcr',
-  CLOUDINARY_UPLOAD_PRESET: 'techbuddy_unsigned',
-  
+  CLOUDINARY_UPLOAD_PRESET: 'techbuddy4biz_media',
+
+  /**
+   * Load Cloudinary config from database
+   * Called during app initialization
+   */
+  async loadCloudinaryConfig() {
+    try {
+      const response = await fetch(`${this.API_BASE}/api/config/cloudinary`);
+      if (response.ok) {
+        const config = await response.json();
+        if (config.cloud_name) this.CLOUDINARY_CLOUD_NAME = config.cloud_name;
+        if (config.upload_preset) this.CLOUDINARY_UPLOAD_PRESET = config.upload_preset;
+        console.log('☁️ Cloudinary config loaded from DB');
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not load Cloudinary config, using defaults');
+    }
+  },
+
   // API base URL (empty for same-origin)
   API_BASE: '',
   

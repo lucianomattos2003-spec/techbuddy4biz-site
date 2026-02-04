@@ -9,12 +9,15 @@ const App = {
   
   async init() {
     console.log('🚀 TechBuddy4Biz Portal initializing...');
-    
+
     try {
+      // Load Cloudinary config from database
+      await PortalConfig.loadCloudinaryConfig();
+
       // Initialize UI safeguards (online/offline detection, etc.)
       console.log('🛡️ Initializing UI safeguards...');
       UI.initSafeguards();
-      
+
       // Initialize Auth module first
       console.log('📦 Initializing Auth module...');
       Auth.init();
@@ -95,10 +98,13 @@ const App = {
   async handleSignIn(userData) {
     this.isAuthenticated = true;
     this.user = userData;
-    
+
     // Load enabled platforms for this client before rendering
-    await API.loadEnabledPlatforms();
-    
+    // Use .catch to prevent errors from blocking login
+    await API.loadEnabledPlatforms().catch(err => {
+      console.warn('Could not load enabled platforms:', err);
+    });
+
     this.render();
     
     // Navigate to dashboard if on login screen
@@ -168,7 +174,7 @@ const App = {
     const userName = document.getElementById('user-name');
     const userEmail = document.getElementById('user-email');
     const logoutBtn = document.getElementById('logout-btn');
-    
+
     if (userName) {
       userName.textContent = Auth.getDisplayName() || 'User';
     }
@@ -177,6 +183,27 @@ const App = {
     }
     if (logoutBtn) {
       logoutBtn.onclick = () => this.logout();
+    }
+
+    // Role-based nav visibility
+    const isAdmin = Auth.user?.role === 'admin';
+    const hasClientId = !!Auth.user?.client_id;
+
+    // Show admin config link only for admins
+    const adminLink = document.getElementById('admin-config-link');
+    if (adminLink) {
+      adminLink.classList.toggle('hidden', !isAdmin);
+    }
+
+    // Hide client-dependent nav items for admin users without a client_id
+    if (isAdmin && !hasClientId) {
+      document.querySelectorAll('[data-requires="client"]').forEach(el => {
+        el.classList.add('hidden');
+      });
+    } else {
+      document.querySelectorAll('[data-requires="client"]').forEach(el => {
+        el.classList.remove('hidden');
+      });
     }
   },
   
