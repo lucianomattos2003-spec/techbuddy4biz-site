@@ -192,7 +192,7 @@ window.AdminI18n = {
       'lang.spanish': 'Español'
     },
 
-    pt: {
+    'pt-BR': {
       // Header
       'header.title': 'Console Admin',
       'header.configuration': 'Configuração',
@@ -589,7 +589,7 @@ window.AdminI18n = {
    */
   detectBrowserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
-    if (browserLang.startsWith('pt')) return 'pt';
+    if (browserLang.startsWith('pt')) return 'pt-BR';
     if (browserLang.startsWith('es')) return 'es';
     return 'en';
   },

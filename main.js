@@ -231,7 +231,7 @@ const translations = {
     'auditPage.testimonialAuthor': '— Small business owner, Central Florida'
   },
 
-  pt: {
+  'pt-BR': {
     'nav.services': 'O que automatizamos',
     'nav.playbooks': 'Playbooks',
     'nav.process': 'Como funciona',
@@ -696,7 +696,7 @@ const translations = {
 
 function detectBrowserLanguage() {
   const navLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
-  if (navLang.startsWith('pt')) return 'pt';
+  if (navLang.startsWith('pt')) return 'pt-BR';
   if (navLang.startsWith('es')) return 'es';
   return 'en';
 }
@@ -704,7 +704,7 @@ function detectBrowserLanguage() {
 function applyLanguage(lang) {
   const dict = translations[lang] || translations.en;
 
-  document.documentElement.lang = lang === 'pt' ? 'pt-BR' : lang === 'es' ? 'es' : 'en';
+  document.documentElement.lang = lang === 'pt-BR' ? 'pt-BR' : lang === 'es' ? 'es' : 'en';
 
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const key = el.getAttribute('data-i18n');
@@ -721,7 +721,7 @@ function applyLanguage(lang) {
 }
 
 function setLanguage(lang) {
-  const normalized = ['en', 'pt', 'es'].includes(lang) ? lang : 'en';
+  const normalized = ['en', 'pt-BR', 'es'].includes(lang) ? lang : 'en';
   localStorage.setItem('tb4b_lang', normalized);
   applyLanguage(normalized);
 }

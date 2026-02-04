@@ -445,7 +445,7 @@ window.Calendar = {
     const date = new Date(dateStr);
     // Use localized date format based on current language
     const lang = window.PortalI18n?.currentLang || 'en';
-    const locale = lang === 'pt' ? 'pt-BR' : lang === 'es' ? 'es-ES' : 'en-US';
+    const locale = lang === 'pt-BR' ? 'pt-BR' : lang === 'es' ? 'es-ES' : 'en-US';
     title.textContent = date.toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',

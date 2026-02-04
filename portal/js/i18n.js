@@ -35,6 +35,9 @@ window.PortalI18n = {
       'auth.confirmNewPassword': 'Confirm New Password',
       'auth.updatePassword': 'Update Password',
       'auth.backToWebsite': '← Back to website',
+      'auth.setPasswordTitle': 'Set Your Password',
+      'auth.setPasswordDesc': 'Enter the code from your welcome email and choose a password.',
+      'auth.setPassword': 'Set Password & Sign In',
 
       // Loading
       'loading.text': 'Loading...',
@@ -530,7 +533,7 @@ window.PortalI18n = {
       'analytics.cancelled': 'Cancelled'
     },
 
-    pt: {
+    'pt-BR': {
       // Auth Screen
       'auth.title': 'Portal do Cliente',
       'auth.subtitle': 'Entre para gerenciar seu conteúdo social',
@@ -558,6 +561,9 @@ window.PortalI18n = {
       'auth.confirmNewPassword': 'Confirmar Nova Senha',
       'auth.updatePassword': 'Atualizar Senha',
       'auth.backToWebsite': '← Voltar ao site',
+      'auth.setPasswordTitle': 'Defina Sua Senha',
+      'auth.setPasswordDesc': 'Digite o código do seu e-mail de boas-vindas e escolha uma senha.',
+      'auth.setPassword': 'Definir Senha e Entrar',
 
       // Loading
       'loading.text': 'Carregando...',
@@ -1076,6 +1082,9 @@ window.PortalI18n = {
       'auth.confirmNewPassword': 'Confirmar Nueva Contraseña',
       'auth.updatePassword': 'Actualizar Contraseña',
       'auth.backToWebsite': '← Volver al sitio web',
+      'auth.setPasswordTitle': 'Establece Tu Contraseña',
+      'auth.setPasswordDesc': 'Ingresa el código de tu correo de bienvenida y elige una contraseña.',
+      'auth.setPassword': 'Establecer Contraseña e Iniciar Sesión',
 
       // Loading
       'loading.text': 'Cargando...',
@@ -1593,7 +1602,7 @@ window.PortalI18n = {
    */
   detectBrowserLanguage() {
     const browserLang = navigator.language || navigator.userLanguage;
-    if (browserLang.startsWith('pt')) return 'pt';
+    if (browserLang.startsWith('pt')) return 'pt-BR';
     if (browserLang.startsWith('es')) return 'es';
     return 'en';
   },

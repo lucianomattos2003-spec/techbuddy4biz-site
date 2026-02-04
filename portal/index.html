@@ -245,6 +245,85 @@
             </p>
           </form>
           
+          <!-- Set Password Form (new user from welcome email) -->
+          <form id="set-password-form" class="hidden space-y-5">
+            <div class="text-center mb-4">
+              <div class="w-16 h-16 bg-brandTeal/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="key-round" class="w-8 h-8 text-brandTeal"></i>
+              </div>
+              <h2 class="text-lg font-semibold" data-i18n="auth.setPasswordTitle">Set Your Password</h2>
+              <p class="text-gray-400 text-sm mt-1" data-i18n="auth.setPasswordDesc">Enter the code from your welcome email and choose a password.</p>
+            </div>
+
+            <div>
+              <label for="sp-email" class="block text-sm font-medium text-gray-300 mb-2" data-i18n="auth.emailLabel">Email address</label>
+              <input
+                type="email"
+                id="sp-email"
+                name="email"
+                required
+                placeholder="you@example.com"
+                data-i18n-placeholder="auth.emailPlaceholder"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+
+            <div>
+              <label for="sp-otp" class="block text-sm font-medium text-gray-300 mb-2" data-i18n="auth.verificationCode">Verification Code</label>
+              <input
+                type="text"
+                id="sp-otp"
+                name="otp"
+                required
+                maxlength="6"
+                pattern="[0-9]{6}"
+                placeholder="123456"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500 text-center text-2xl tracking-widest"
+              >
+            </div>
+
+            <div>
+              <label for="sp-password" class="block text-sm font-medium text-gray-300 mb-2" data-i18n="auth.newPassword">New Password</label>
+              <input
+                type="password"
+                id="sp-password"
+                name="password"
+                required
+                minlength="6"
+                placeholder="Min 6 characters"
+                data-i18n-placeholder="auth.minPassword"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+
+            <div>
+              <label for="sp-confirm" class="block text-sm font-medium text-gray-300 mb-2" data-i18n="auth.confirmNewPassword">Confirm Password</label>
+              <input
+                type="password"
+                id="sp-confirm"
+                name="confirm"
+                required
+                minlength="6"
+                placeholder="••••••••"
+                data-i18n-placeholder="auth.passwordPlaceholder"
+                class="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-brandBlue focus:border-transparent transition-all text-white placeholder-gray-500"
+              >
+            </div>
+
+            <button
+              type="submit"
+              id="sp-btn"
+              class="w-full py-3 px-4 bg-brandTeal hover:bg-emerald-500 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2"
+            >
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+              <span data-i18n="auth.setPassword">Set Password & Sign In</span>
+            </button>
+
+            <p class="text-center text-sm">
+              <button type="button" id="show-login-from-sp" class="text-brandBlue hover:underline" data-i18n="auth.haveAccount">Already have an account? Sign in</button>
+            </p>
+          </form>
+
           <!-- Reset Password Form (after OTP verified) -->
           <form id="reset-form" class="hidden space-y-5">
             <div class="text-center mb-4">
@@ -363,7 +442,7 @@
           <div class="mb-3">
             <select id="portal-lang-select" class="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-sm text-gray-300 focus:ring-2 focus:ring-brandBlue">
               <option value="en">English</option>
-              <option value="pt">Português (BR)</option>
+              <option value="pt-BR">Português (BR)</option>
               <option value="es">Español</option>
             </select>
           </div>

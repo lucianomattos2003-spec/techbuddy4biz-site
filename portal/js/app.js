@@ -161,10 +161,15 @@ const App = {
       // Show login screen
       authScreen?.classList.remove('hidden');
       mainApp?.classList.add('hidden');
-      
+
       // Setup login form
       console.log('📝 Setting up login form...');
       this.setupLoginForm();
+
+      // Check if this is a set-password page (new user from welcome email)
+      if (window.location.pathname.includes('set-password')) {
+        this.showSetPasswordForm();
+      }
     }
     
     console.log('✅ render() complete');
@@ -207,6 +212,32 @@ const App = {
     }
   },
   
+  showSetPasswordForm() {
+    // Parse query params for pre-filling
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || '';
+    const otp = params.get('otp') || '';
+
+    // Show the set-password form
+    const allForms = document.querySelectorAll('#auth-screen form');
+    allForms.forEach(f => f.classList.add('hidden'));
+    document.getElementById('set-password-form')?.classList.remove('hidden');
+
+    // Pre-fill fields from URL params
+    const emailInput = document.getElementById('sp-email');
+    const otpInput = document.getElementById('sp-otp');
+    if (emailInput && email) {
+      emailInput.value = email;
+      emailInput.readOnly = true;
+      emailInput.classList.add('opacity-60');
+    }
+    if (otpInput && otp) {
+      otpInput.value = otp;
+    }
+
+    lucide.createIcons();
+  },
+
   setupLoginForm() {
     // Get all form elements
     const loginForm = document.getElementById('login-form');
@@ -214,26 +245,29 @@ const App = {
     const forgotForm = document.getElementById('forgot-form');
     const otpForm = document.getElementById('otp-form');
     const resetForm = document.getElementById('reset-form');
-    
+    const setPasswordForm = document.getElementById('set-password-form');
+
     // Form toggle buttons
     const showSignup = document.getElementById('show-signup');
     const showForgot = document.getElementById('show-forgot');
     const showLoginFromSignup = document.getElementById('show-login-from-signup');
     const showLoginFromForgot = document.getElementById('show-login-from-forgot');
+    const showLoginFromSp = document.getElementById('show-login-from-sp');
     const resendOtp = document.getElementById('resend-otp');
-    
+
     // Helper to show only one form
     const showForm = (formId) => {
-      [loginForm, signupForm, forgotForm, otpForm, resetForm].forEach(f => f?.classList.add('hidden'));
+      [loginForm, signupForm, forgotForm, otpForm, resetForm, setPasswordForm].forEach(f => f?.classList.add('hidden'));
       document.getElementById(formId)?.classList.remove('hidden');
       lucide.createIcons();
     };
-    
+
     // Toggle between forms
     showSignup?.addEventListener('click', () => showForm('signup-form'));
     showForgot?.addEventListener('click', () => showForm('forgot-form'));
     showLoginFromSignup?.addEventListener('click', () => showForm('login-form'));
     showLoginFromForgot?.addEventListener('click', () => showForm('login-form'));
+    showLoginFromSp?.addEventListener('click', () => showForm('login-form'));
     
     // ========== LOGIN FORM ==========
     loginForm?.addEventListener('submit', async (e) => {
@@ -425,8 +459,77 @@ const App = {
         lucide.createIcons();
       }
     });
+
+    // ========== SET PASSWORD FORM (new user) ==========
+    setPasswordForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('sp-email').value.trim();
+      const otp = document.getElementById('sp-otp').value.trim();
+      const password = document.getElementById('sp-password').value;
+      const confirm = document.getElementById('sp-confirm').value;
+
+      if (!email || !otp || !password) {
+        UI.toast('Please fill in all fields', 'error');
+        return;
+      }
+
+      if (otp.length !== 6 || !/^\d+$/.test(otp)) {
+        UI.toast('Please enter a valid 6-digit code', 'error');
+        return;
+      }
+
+      if (password.length < 6) {
+        UI.toast('Password must be at least 6 characters', 'error');
+        return;
+      }
+
+      if (password !== confirm) {
+        UI.toast('Passwords do not match', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('sp-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Setting password...';
+
+      try {
+        const result = await API.request('/api/auth/set-password', {
+          method: 'POST',
+          body: JSON.stringify({ email, otp, password })
+        });
+
+        if (result.accessToken && result.user) {
+          // Store tokens and auto-login
+          Auth.accessToken = result.accessToken;
+          Auth.refreshToken = result.refreshToken;
+          Auth.user = result.user;
+          localStorage.setItem('tb_access_token', result.accessToken);
+          localStorage.setItem('tb_refresh_token', result.refreshToken);
+          localStorage.setItem('tb_user', JSON.stringify(result.user));
+
+          UI.toast('Password set successfully! Welcome!', 'success');
+
+          // Clean URL and redirect to portal
+          window.history.replaceState({}, '', '/portal/');
+          this.handleSignIn(result.user);
+        } else {
+          UI.toast('Password set! Please sign in.', 'success');
+          showForm('login-form');
+          const loginEmail = document.getElementById('login-email');
+          if (loginEmail) loginEmail.value = email;
+        }
+      } catch (err) {
+        console.error('Set password failed:', err);
+        UI.toast(err.message || 'Failed to set password. Check your code and try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5"></i> Set Password & Sign In';
+        lucide.createIcons();
+      }
+    });
   },
-  
+
   async logout() {
     try {
       await Auth.signOut();
