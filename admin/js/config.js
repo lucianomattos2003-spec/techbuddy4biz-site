@@ -201,8 +201,12 @@ function switchTab(tabId) {
   });
   document.getElementById(`tab-${tabId}`).classList.remove('hidden');
 
-  // Load data if client selected
-  if (selectedClientId) {
+  // Global tabs (system, audit) load without client selection
+  const globalTabs = ['system', 'audit'];
+  if (globalTabs.includes(tabId)) {
+    loadCurrentTab();
+  } else if (selectedClientId) {
+    // Client-specific tabs require a client selection
     loadCurrentTab();
   }
 

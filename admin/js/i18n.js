@@ -31,6 +31,7 @@ window.AdminI18n = {
       'tab.rules': 'Rules',
       'tab.branding': 'Branding',
       'tab.hashtags': 'Hashtags',
+      'nav.globalSettings': 'Global Settings',
       'tab.system': 'System',
       'tab.auditLog': 'Audit Log',
 
@@ -216,6 +217,7 @@ window.AdminI18n = {
       'tab.rules': 'Regras',
       'tab.branding': 'Marca',
       'tab.hashtags': 'Hashtags',
+      'nav.globalSettings': 'Configurações Globais',
       'tab.system': 'Sistema',
       'tab.auditLog': 'Log de Auditoria',
 
@@ -401,6 +403,7 @@ window.AdminI18n = {
       'tab.rules': 'Reglas',
       'tab.branding': 'Marca',
       'tab.hashtags': 'Hashtags',
+      'nav.globalSettings': 'Configuración Global',
       'tab.system': 'Sistema',
       'tab.auditLog': 'Log de Auditoría',
 
